@@ -1,0 +1,8 @@
+items = [
+  "Add one sentence about what you are focused on this month.",
+  "Add one sentence about what you are learning or exploring.",
+  "Add one sentence about what you are building next."
+]
+
+[section]
+heading = "Now"

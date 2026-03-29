@@ -1,0 +1,15 @@
+[section]
+heading = "Writing"
+intro = "A curated list of notes, essays, or technical posts."
+
+[[items]]
+title = "Article Title Placeholder"
+outlet = "Publication or Platform"
+date = "YYYY-MM-DD"
+link = ""
+
+[[items]]
+title = "Another Article Placeholder"
+outlet = "Publication or Platform"
+date = "YYYY-MM-DD"
+link = ""

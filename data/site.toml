@@ -1,0 +1,34 @@
+[hero]
+eyebrow = "Personal Homepage"
+title = "Your Name"
+subtitle = "A concise one-line description of what you do."
+
+[hero.primaryCta]
+label = "View Projects"
+href = "#projects"
+
+[hero.secondaryCta]
+label = "Get in Touch"
+href = "#contact"
+
+[about]
+heading = "About"
+paragraphs = [
+  "Write a short personal bio here. Keep it clear, specific, and human.",
+  "You can describe your background, interests, and the kind of work you care about."
+]
+
+[resume]
+label = "Resume"
+href = ""
+enabled = false
+
+[contact]
+heading = "Contact"
+intro = "The form is live in placeholder mode. Messages are accepted by the API and stored on the server."
+email = ""
+location = ""
+
+[footer]
+lineOne = "Built with Hugo and a minimal FastAPI backend."
+lineTwo = "Update your content when you are ready."

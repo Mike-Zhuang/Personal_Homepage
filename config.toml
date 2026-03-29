@@ -1,0 +1,37 @@
+baseURL = "https://example.com/"
+languageCode = "en-us"
+title = "Personal Homepage"
+enableRobotsTXT = true
+disableKinds = ["taxonomy", "term"]
+
+[markup.goldmark.renderer]
+  unsafe = true
+
+[params]
+  siteDescription = "A minimal editorial-style personal homepage."
+  apiBaseUrl = ""
+
+[[menu.main]]
+  name = "About"
+  url = "#about"
+  weight = 1
+
+[[menu.main]]
+  name = "Projects"
+  url = "#projects"
+  weight = 2
+
+[[menu.main]]
+  name = "Writing"
+  url = "#writing"
+  weight = 3
+
+[[menu.main]]
+  name = "Now"
+  url = "#now"
+  weight = 4
+
+[[menu.main]]
+  name = "Contact"
+  url = "#contact"
+  weight = 5

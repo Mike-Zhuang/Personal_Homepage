@@ -1,0 +1,8 @@
+public/
+resources/
+.hugo_build.lock
+api/.venv/
+api/__pycache__/
+api/runtime/
+*.log
+.DS_Store

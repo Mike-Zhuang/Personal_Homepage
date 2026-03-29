@@ -1,0 +1,23 @@
+[section]
+heading = "Projects"
+
+[[items]]
+title = "Project One"
+status = "In Progress"
+stack = "Tech Stack Placeholder"
+summary = "Describe the problem, your approach, and what makes this project meaningful."
+link = ""
+
+[[items]]
+title = "Project Two"
+status = "Draft"
+stack = "Tech Stack Placeholder"
+summary = "Add a concise summary with one clear result or insight."
+link = ""
+
+[[items]]
+title = "Project Three"
+status = "Planned"
+stack = "Tech Stack Placeholder"
+summary = "List what you want to build next and why it matters."
+link = ""

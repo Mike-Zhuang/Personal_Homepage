@@ -1,0 +1,18 @@
+[Unit]
+Description=Personal Homepage FastAPI Service
+After=network.target
+
+[Service]
+Type=simple
+User=www
+Group=www
+WorkingDirectory=/opt/personal-homepage/api
+EnvironmentFile=/opt/personal-homepage/deploy/env/api.env
+ExecStart=/opt/personal-homepage/api/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+StandardOutput=append:/var/log/personal-homepage/api.log
+StandardError=append:/var/log/personal-homepage/api-error.log
+
+[Install]
+WantedBy=multi-user.target
