@@ -1,7 +1,11 @@
 [hero]
 eyebrow = "Personal Homepage"
-title = "Your Name"
-subtitle = "A concise one-line description of what you do."
+title = "Zhuang Chengbo (Mike)"
+subtitle = "Future Technology student at Tongji University building digital twins, simulation systems, and practical AI tools."
+
+[profile]
+image = "/images/personal-homepage.jpg"
+alt = "Portrait of Zhuang Chengbo"
 
 [hero.primaryCta]
 label = "View Projects"
@@ -14,8 +18,10 @@ href = "#contact"
 [about]
 heading = "About"
 paragraphs = [
-  "Write a short personal bio here. Keep it clear, specific, and human.",
-  "You can describe your background, interests, and the kind of work you care about."
+  "I am a student at Tongji University (Future Technology track), focusing on simulation systems, digital twins, and applied AI.",
+  "I independently designed and deployed a production-style analytics platform (FastAPI + React + TypeScript) with CI/CD, Nginx reverse proxy, and systemd process management on Linux VPS.",
+  "I completed the Oxford Prospects Programme (STEM) with an A+ final evaluation and built an interdisciplinary AI capstone project combining simulation, decision models, and interactive system design.",
+  "I care about building systems that are technically solid, easy to maintain, and genuinely useful outside demos."
 ]
 
 [resume]
@@ -23,12 +29,27 @@ label = "Resume"
 href = ""
 enabled = false
 
+[social]
+heading = "Social"
+
+[[social.links]]
+label = "GitHub"
+href = "https://github.com/Mike-Zhuang"
+
+[[social.links]]
+label = "Zhihu"
+href = "https://www.zhihu.com/people/1f495eccfc7c3c5267b21bbea47f799f"
+
+[[social.links]]
+label = "Bilibili"
+href = "https://b23.tv/0XVlBWj"
+
 [contact]
 heading = "Contact"
-intro = "The form is live in placeholder mode. Messages are accepted by the API and stored on the server."
-email = ""
-location = ""
+intro = "For collaboration, research discussion, or project opportunities, email is the best way to reach me."
+email = "cbzhuang@tongji.edu.cn"
+location = "Shanghai, China"
 
 [footer]
 lineOne = "Built with Hugo and a minimal FastAPI backend."
-lineTwo = "Update your content when you are ready."
+lineTwo = "Resume download is intentionally kept private."

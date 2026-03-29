@@ -1,23 +1,30 @@
 [section]
-heading = "Projects"
+heading = "Selected Work"
 
 [[items]]
-title = "Project One"
-status = "In Progress"
-stack = "Tech Stack Placeholder"
-summary = "Describe the problem, your approach, and what makes this project meaningful."
+title = "Tongji Southwest Building No.1 Digital Twin"
+status = "Project Lead"
+stack = "Unity · BIM · Digital Twin · Data Visualization"
+summary = "A high-fidelity digital twin project for historical building preservation and campus operation scenarios, with integrated visualization and interactive workflows."
+link = "https://github.com/Southwest-Building-1-Digital-Twin"
+
+[[items]]
+title = "Multimodal Semantic BIM Generator"
+status = "SITP / Challenge Cup"
+stack = "3D Gaussian Splatting · Neural SDF · GNN · IFC"
+summary = "A semantic-driven 3D reconstruction workflow that transforms visual and point-cloud inputs into engineering-oriented BIM structures."
 link = ""
 
 [[items]]
-title = "Project Two"
-status = "Draft"
-stack = "Tech Stack Placeholder"
-summary = "Add a concise summary with one clear result or insight."
+title = "Checkee Visa Analytics"
+status = "Domain Launch Pending"
+stack = "FastAPI · React · TypeScript · Nginx · systemd"
+summary = "A full-stack analytics platform for visa timeline data with robust percentile statistics and production-grade Linux deployment."
 link = ""
 
 [[items]]
-title = "Project Three"
-status = "Planned"
-stack = "Tech Stack Placeholder"
-summary = "List what you want to build next and why it matters."
-link = ""
+title = "LBM Multi-Scenario Fluid Dynamics Simulator"
+status = "Research in Progress"
+stack = "Python · NumPy · Matplotlib · Computational Physics"
+summary = "A lattice Boltzmann (D2Q9) simulation framework for vortex dynamics, interactive parameter tuning, and visual analysis of complex flow behavior."
+link = "https://github.com/Mike-Zhuang/Foundations_of_Autonomous_Intelligence_Homework/tree/main/3.%20%E9%98%B6%E6%AE%B51%E5%AE%9E%E8%B7%B5%EF%BC%9A%E8%87%AA%E7%84%B6%E7%95%8C%E3%80%81%E7%94%9F%E6%B4%BB%E3%80%81%E5%B7%A5%E7%A8%8B%E9%A2%86%E5%9F%9F%E4%B8%AD%E7%9A%84%E5%8A%A8%E6%80%81%E6%BC%94%E5%8F%98%E7%AE%97%E6%B3%95%E5%8F%8A%E5%AE%9E%E7%8E%B0"

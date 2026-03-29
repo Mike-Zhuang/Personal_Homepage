@@ -1,0 +1,14 @@
+[section]
+heading = "Education"
+
+[[items]]
+school = "Tongji University"
+program = "Future Technology Programme"
+period = "2026 - Present"
+location = ""
+
+[[items]]
+school = "Mudanjiang No.1 Senior High School"
+program = "High School"
+period = "2022 - 2025"
+location = "Mudanjiang, China"

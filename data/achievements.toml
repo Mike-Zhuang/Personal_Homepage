@@ -1,0 +1,23 @@
+[section]
+heading = "Achievements"
+
+[[items]]
+title = "Freshman Scholarship (Third Prize)"
+issuer = "Tongji University"
+year = "2025"
+note = "Academic scholarship in the first semester."
+link = ""
+
+[[items]]
+title = "Tongji Physics Tournament (Second Prize)"
+issuer = "Tongji University"
+year = "2025"
+note = "Awarded in the inaugural university physics academic competition."
+link = ""
+
+[[items]]
+title = "Oxford Prospects Programme (STEM Module) — A+"
+issuer = "University of Oxford, Oxford Prospects Programme"
+year = "2025"
+note = "Completed interdisciplinary STEM coursework with top grade."
+link = ""

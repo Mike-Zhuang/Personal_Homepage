@@ -1,40 +1,42 @@
 <!doctype html>
 <html lang="en">
 {{ partial "head.html" . }}
+
 <body>
-  <div class="bg-layer" aria-hidden="true"></div>
-  <div class="grain" aria-hidden="true"></div>
+    <div class="bg-layer" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
 
-  <div class="page-shell">
-    <header class="site-header reveal" data-reveal-index="0">
-      <div class="brand">
-        <p class="brand-label">{{ .Site.Data.site.hero.eyebrow }}</p>
-        <h1>{{ .Site.Data.site.hero.title }}</h1>
-      </div>
+    <div class="page-shell">
+        <header class="site-header reveal" data-reveal-index="0">
+            <div class="brand">
+                <p class="brand-label">{{ hugo.Data.site.hero.eyebrow }}</p>
+                <h1>{{ hugo.Data.site.hero.title }}</h1>
+            </div>
 
-      <nav class="top-nav" aria-label="Main navigation">
-        {{ range .Site.Menus.main }}
-          <a href="{{ .URL | relURL }}">{{ .Name }}</a>
-        {{ end }}
-      </nav>
-    </header>
+            <nav class="top-nav" aria-label="Main navigation">
+                {{ range .Site.Menus.main }}
+                <a href="{{ .URL | relURL }}">{{ .Name }}</a>
+                {{ end }}
+            </nav>
+        </header>
 
-    <main>
-      {{ block "main" . }}{{ end }}
-    </main>
+        <main>
+            {{ block "main" . }}{{ end }}
+        </main>
 
-    <footer class="site-footer reveal" data-reveal-index="8">
-      <p>{{ .Site.Data.site.footer.lineOne }}</p>
-      <p>{{ .Site.Data.site.footer.lineTwo }}</p>
-      <p>&copy; {{ now.Format "2006" }}</p>
-    </footer>
-  </div>
+        <footer class="site-footer reveal" data-reveal-index="9">
+            <p>{{ hugo.Data.site.footer.lineOne }}</p>
+            <p>{{ hugo.Data.site.footer.lineTwo }}</p>
+            <p>&copy; {{ now.Format "2006" }}</p>
+        </footer>
+    </div>
 
-  <script>
-    window.__SITE_CONFIG__ = {
-      apiBaseUrl: "{{ .Site.Params.apiBaseUrl }}"
-    };
-  </script>
-  <script src="{{ "/js/main.js" | relURL }}" defer></script>
+    <script>
+        window.__SITE_CONFIG__ = {
+            apiBaseUrl: "{{ .Site.Params.apiBaseUrl }}"
+        };
+    </script>
+    <script src="{{ "/js/main.js" | relURL }}" defer></script>
 </body>
+
 </html>

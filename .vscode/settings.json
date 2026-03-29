@@ -1,0 +1,7 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/api/.venv/bin/python",
+    "debug.onTaskErrors": "abort",
+    "files.associations": {
+        "*.toml": "toml"
+    }
+}

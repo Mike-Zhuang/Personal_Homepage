@@ -2,7 +2,8 @@ public/
 resources/
 .hugo_build.lock
 api/.venv/
-api/__pycache__/
+__pycache__/
+*.pyc
 api/runtime/
 *.log
 .DS_Store
