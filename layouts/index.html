@@ -2,23 +2,23 @@
 <section class="hero reveal" id="hero" data-reveal-index="1">
     <div class="hero-content">
         <div class="hero-copy">
-            <p class="hero-kicker">{{ hugo.Data.site.hero.eyebrow }}</p>
-            <h2>{{ hugo.Data.site.hero.subtitle }}</h2>
+            <p class="hero-kicker">{{ .Site.Data.site.hero.eyebrow }}</p>
+            <h2>{{ .Site.Data.site.hero.subtitle }}</h2>
 
             <div class="hero-actions">
-                {{ with hugo.Data.site.hero.primaryCta }}
+                {{ with .Site.Data.site.hero.primaryCta }}
                 <a class="button primary" href="{{ .href }}">{{ .label }}</a>
                 {{ end }}
-                {{ with hugo.Data.site.hero.secondaryCta }}
+                {{ with .Site.Data.site.hero.secondaryCta }}
                 <a class="button ghost" href="{{ .href }}">{{ .label }}</a>
                 {{ end }}
             </div>
         </div>
 
-        {{ with hugo.Data.site.profile.image }}
+        {{ with .Site.Data.site.profile.image }}
         <figure class="profile-photo-wrap">
-            <img class="profile-photo" src="{{ . | relURL }}" alt="{{ hugo.Data.site.profile.alt }}">
-            {{ with hugo.Data.site.profile.caption }}
+            <img class="profile-photo" src="{{ . | relURL }}" alt="{{ $.Site.Data.site.profile.alt }}">
+            {{ with $.Site.Data.site.profile.caption }}
             <figcaption>{{ . }}</figcaption>
             {{ end }}
         </figure>
@@ -28,25 +28,24 @@
 
 <section class="panel reveal" id="about" data-reveal-index="2">
     <div class="panel-head">
-        <h3>{{ hugo.Data.site.about.heading }}</h3>
+        <h3>{{ .Site.Data.site.about.heading }}</h3>
     </div>
     <div class="panel-body">
-        {{ range hugo.Data.site.about.paragraphs }}
+        {{ range .Site.Data.site.about.paragraphs }}
         <p>{{ . }}</p>
         {{ end }}
 
-        {{ if and hugo.Data.site.resume.enabled hugo.Data.site.resume.href }}
-        <a class="inline-link" href="{{ hugo.Data.site.resume.href }}" target="_blank" rel="noreferrer">{{
-            hugo.Data.site.resume.label }}</a>
+        {{ if and .Site.Data.site.resume.enabled .Site.Data.site.resume.href }}
+        <a class="inline-link" href="{{ .Site.Data.site.resume.href }}" target="_blank" rel="noreferrer">{{ .Site.Data.site.resume.label }}</a>
         {{ else }}
-        <p class="muted">{{ hugo.Data.site.resume.label }}: Coming soon.</p>
+        <p class="muted">{{ .Site.Data.site.resume.label }}: Coming soon.</p>
         {{ end }}
 
-        {{ if hugo.Data.site.social.links }}
+        {{ if .Site.Data.site.social.links }}
         <div class="social-links">
-            <p class="muted">{{ hugo.Data.site.social.heading }}</p>
+            <p class="muted">{{ .Site.Data.site.social.heading }}</p>
             <ul>
-                {{ range hugo.Data.site.social.links }}
+                {{ range .Site.Data.site.social.links }}
                 <li><a class="inline-link" href="{{ .href }}" target="_blank" rel="noreferrer">{{ .label }}</a></li>
                 {{ end }}
             </ul>
@@ -57,11 +56,11 @@
 
 <section class="panel reveal" id="education" data-reveal-index="3">
     <div class="panel-head">
-        <h3>{{ hugo.Data.education.section.heading }}</h3>
+        <h3>{{ .Site.Data.education.section.heading }}</h3>
     </div>
     <div class="panel-body">
         <ul class="education-list">
-            {{ range hugo.Data.education.items }}
+            {{ range .Site.Data.education.items }}
             <li>
                 <strong>{{ .school }}</strong>
                 {{ if .location }}
@@ -78,10 +77,10 @@
 
 <section class="panel reveal" id="projects" data-reveal-index="4">
     <div class="panel-head">
-        <h3>{{ hugo.Data.projects.section.heading }}</h3>
+        <h3>{{ .Site.Data.projects.section.heading }}</h3>
     </div>
     <div class="cards">
-        {{ range hugo.Data.projects.items }}
+        {{ range .Site.Data.projects.items }}
         <article class="card">
             <div class="card-meta">
                 <span>{{ .status }}</span>
@@ -101,11 +100,11 @@
 
 <section class="panel reveal" id="achievements" data-reveal-index="5">
     <div class="panel-head">
-        <h3>{{ hugo.Data.achievements.section.heading }}</h3>
+        <h3>{{ .Site.Data.achievements.section.heading }}</h3>
     </div>
     <div class="panel-body">
         <ul class="achievements-list">
-            {{ range hugo.Data.achievements.items }}
+            {{ range .Site.Data.achievements.items }}
             <li>
                 <div>
                     <strong>{{ .title }}</strong>
@@ -123,11 +122,11 @@
 
 <section class="panel reveal" id="now" data-reveal-index="6">
     <div class="panel-head">
-        <h3>{{ hugo.Data.now.section.heading }}</h3>
+        <h3>{{ .Site.Data.now.section.heading }}</h3>
     </div>
     <div class="panel-body">
         <ul class="now-list">
-            {{ range hugo.Data.now.items }}
+            {{ range .Site.Data.now.items }}
             <li>{{ . }}</li>
             {{ end }}
         </ul>
@@ -136,18 +135,17 @@
 
 <section class="panel reveal" id="contact" data-reveal-index="7">
     <div class="panel-head">
-        <h3>{{ hugo.Data.site.contact.heading }}</h3>
+        <h3>{{ .Site.Data.site.contact.heading }}</h3>
     </div>
     <div class="panel-body">
-        <p>{{ hugo.Data.site.contact.intro }}</p>
+        <p>{{ .Site.Data.site.contact.intro }}</p>
 
-        {{ if hugo.Data.site.contact.email }}
-        <p><a class="inline-link" href="mailto:{{ hugo.Data.site.contact.email }}">{{ hugo.Data.site.contact.email
-                }}</a></p>
+        {{ if .Site.Data.site.contact.email }}
+        <p><a class="inline-link" href="mailto:{{ .Site.Data.site.contact.email }}">{{ .Site.Data.site.contact.email }}</a></p>
         {{ end }}
 
-        {{ if hugo.Data.site.contact.location }}
-        <p class="muted">{{ hugo.Data.site.contact.location }}</p>
+        {{ if .Site.Data.site.contact.location }}
+        <p class="muted">{{ .Site.Data.site.contact.location }}</p>
         {{ end }}
     </div>
 </section>
