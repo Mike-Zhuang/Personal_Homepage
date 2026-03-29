@@ -9,8 +9,8 @@
     <div class="page-shell">
         <header class="site-header reveal" data-reveal-index="0">
             <div class="brand">
-                <p class="brand-label">{{ hugo.Data.site.hero.eyebrow }}</p>
-                <h1>{{ hugo.Data.site.hero.title }}</h1>
+                <p class="brand-label">{{ .Site.Data.site.hero.eyebrow }}</p>
+                <h1>{{ .Site.Data.site.hero.title }}</h1>
             </div>
 
             <nav class="top-nav" aria-label="Main navigation">
@@ -25,8 +25,8 @@
         </main>
 
         <footer class="site-footer reveal" data-reveal-index="9">
-            <p>{{ hugo.Data.site.footer.lineOne }}</p>
-            <p>{{ hugo.Data.site.footer.lineTwo }}</p>
+            <p>{{ .Site.Data.site.footer.lineOne }}</p>
+            <p>{{ .Site.Data.site.footer.lineTwo }}</p>
             <p>&copy; {{ now.Format "2006" }}</p>
         </footer>
     </div>
