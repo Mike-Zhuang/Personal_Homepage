@@ -9,3 +9,4 @@ api/runtime/
 *.log
 .DS_Store
 deploy/env/api.env
+docs/server-deploy-agent-checklist.md
