@@ -1,5 +1,6 @@
 public/
 resources/
+runtime/
 .hugo_build.lock
 api/.venv/
 __pycache__/
@@ -7,3 +8,4 @@ __pycache__/
 api/runtime/
 *.log
 .DS_Store
+deploy/env/api.env

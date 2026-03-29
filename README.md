@@ -65,19 +65,39 @@ Or use the helper script:
 ./scripts/dev-api.sh
 ```
 
+Optional local log file:
+
+```bash
+API_DEV_LOG_FILE=./runtime/logs/api-dev.log ./scripts/dev-api.sh
+```
+
+### 3) Template Path Guard
+
+Run this check before build/dev server if needed:
+
+```bash
+./scripts/check-template-asset-paths.sh
+```
+
 ## VS Code Debug Preview
 
 Use the built-in debug launch profile:
 
 1. Open Run and Debug panel.
-2. Select `Full Stack: Run and Preview`.
+2. Select `Full Stack: Run`.
 3. Press F5.
 
 This will:
 
 - Start FastAPI backend on `127.0.0.1:8000`
 - Start Hugo dev server on `127.0.0.1:1313`
-- Open the homepage in your default browser
+
+You can open the page manually:
+
+```text
+http://127.0.0.1:1313
+http://127.0.0.1:1313/admin/
+```
 
 ## Where To Fill Your Content Later
 
@@ -91,3 +111,36 @@ All visible website copy is currently in English placeholders.
 Detailed edit map: `docs/content-fill-guide.md`.
 
 Checklist before you publish content: `docs/website-content-checklist.md`.
+
+## Secret Configuration (管理员密钥)
+
+1. `deploy/env/api.env.example` 仅用于示例，禁止填写真实密钥。
+2. 真实密钥请放在 `deploy/env/api.env`（已加入 `.gitignore`，不会提交）。
+3. 本地开发脚本会从以下位置读取 `ADMIN_API_KEY`（按优先级）：
+   - `api/.env`
+   - `deploy/env/api.env`
+
+### 服务器同步仓库后修改管理员密钥
+
+1. 修改后端密钥：
+
+```bash
+sudo vim /opt/personal-homepage/deploy/env/api.env
+# 更新：
+# ADMIN_API_KEY=your-new-strong-key
+```
+
+2. 修改 Nginx 管理代理里的同一份密钥：
+
+```bash
+sudo vim /opt/personal-homepage/deploy/nginx/personal-homepage.conf
+# location /api/admin/ 里：
+# set $admin_api_key "your-new-strong-key";
+```
+
+3. 应用配置：
+
+```bash
+sudo systemctl restart personal-homepage-api
+sudo nginx -t && sudo systemctl reload nginx
+```

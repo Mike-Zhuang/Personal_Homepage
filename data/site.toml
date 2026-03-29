@@ -3,10 +3,6 @@ eyebrow = "Personal Homepage"
 title = "Zhuang Chengbo (Mike)"
 subtitle = "Future Technology student at Tongji University building digital twins, simulation systems, and practical AI tools."
 
-[profile]
-image = "/images/personal-homepage.jpg"
-alt = "Portrait of Zhuang Chengbo"
-
 [hero.primaryCta]
 label = "View Projects"
 href = "#projects"
@@ -15,13 +11,15 @@ href = "#projects"
 label = "Get in Touch"
 href = "#contact"
 
+[profile]
+image = "/images/personal-homepage.jpg"
+alt = "Portrait of Zhuang Chengbo"
+
 [about]
 heading = "About"
 paragraphs = [
-  "I am a student at Tongji University (Future Technology track), focusing on simulation systems, digital twins, and applied AI.",
-  "I independently designed and deployed a production-style analytics platform (FastAPI + React + TypeScript) with CI/CD, Nginx reverse proxy, and systemd process management on Linux VPS.",
-  "I completed the Oxford Prospects Programme (STEM) with an A+ final evaluation and built an interdisciplinary AI capstone project combining simulation, decision models, and interactive system design.",
-  "I care about building systems that are technically solid, easy to maintain, and genuinely useful outside demos."
+    "I am a student at Tongji University (Future Technology track), focusing on simulation systems, digital twins, and applied AI.",
+    "I care about building systems that are technically solid, easy to maintain, and genuinely useful outside demos.",
 ]
 
 [resume]
@@ -31,18 +29,10 @@ enabled = false
 
 [social]
 heading = "Social"
-
-[[social.links]]
-label = "GitHub"
-href = "https://github.com/Mike-Zhuang"
-
-[[social.links]]
-label = "Zhihu"
-href = "https://www.zhihu.com/people/1f495eccfc7c3c5267b21bbea47f799f"
-
-[[social.links]]
-label = "Bilibili"
-href = "https://b23.tv/0XVlBWj"
+links = [
+    { label = "GitHub", href = "https://github.com/Mike-Zhuang" },
+    { label = "Bilibili", href = "https://b23.tv/0XVlBWj" },
+]
 
 [contact]
 heading = "Contact"

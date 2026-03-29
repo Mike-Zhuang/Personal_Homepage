@@ -1,5 +1,10 @@
 {
     "python.defaultInterpreterPath": "${workspaceFolder}/api/.venv/bin/python",
+    "python.terminal.activateEnvironment": false,
+    "python.terminal.activateEnvInCurrentTerminal": false,
+    "terminal.integrated.automationProfile.osx": {
+        "path": "/bin/bash"
+    },
     "debug.onTaskErrors": "abort",
     "files.associations": {
         "*.toml": "toml"

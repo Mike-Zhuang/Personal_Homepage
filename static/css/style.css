@@ -295,6 +295,7 @@ main {
 }
 
 .now-list,
+.writing-list,
 .achievements-list,
 .education-list {
     margin: 0;
@@ -305,6 +306,7 @@ main {
 }
 
 .now-list li,
+.writing-list li,
 .achievements-list li,
 .education-list li {
     padding-bottom: 10px;
@@ -319,6 +321,13 @@ main {
 .education-list li {
     display: grid;
     gap: 4px;
+}
+
+.writing-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
 }
 
 .meta-line {
@@ -339,7 +348,39 @@ main {
     list-style: none;
     display: flex;
     flex-wrap: wrap;
-    gap: 14px;
+    gap: 10px;
+}
+
+.social-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fffdfa;
+    color: var(--muted);
+    text-decoration: none;
+    transition: transform 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.social-link i {
+    font-size: 1rem;
+    width: 1rem;
+    text-align: center;
+}
+
+.social-link span {
+    font-size: 0.84rem;
+    letter-spacing: 0.02em;
+}
+
+.social-link:hover,
+.social-link:focus-visible {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--accent), transparent 45%);
+    color: var(--accent);
+    box-shadow: 0 8px 16px rgba(20, 42, 39, 0.08);
 }
 
 .site-footer {
