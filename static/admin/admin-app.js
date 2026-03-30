@@ -1,519 +1,539 @@
-import React, { useEffect, useState } from "https://esm.sh/react@18.3.1";
-import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
-import htm from "https://esm.sh/htm@3.1.1";
+(function () {
+    "use strict";
 
-const html = htm.bind(React.createElement);
+    function resolveApiPrefix() {
+        if (typeof window === "undefined") {
+            return "/api/admin";
+        }
 
-function resolveApiPrefix() {
-    if (typeof window === "undefined") {
+        var hostname = window.location.hostname;
+        var isLocalHost = hostname === "127.0.0.1" || hostname === "localhost";
+        var isHugoDevPort = window.location.port === "1313";
+
+        if (isLocalHost && isHugoDevPort) {
+            return "http://127.0.0.1:8000/api/admin";
+        }
+
         return "/api/admin";
     }
 
-    const hostname = window.location.hostname;
-    const isLocalHost = hostname === "127.0.0.1" || hostname === "localhost";
-    const isHugoDevPort = window.location.port === "1313";
+    var API_PREFIX = resolveApiPrefix();
+    var POLL_TIMER = null;
 
-    // Hugo dev server does not proxy /api by default, so local admin should call FastAPI directly.
-    if (isLocalHost && isHugoDevPort) {
-        return "http://127.0.0.1:8000/api/admin";
-    }
-
-    return "/api/admin";
-}
-
-const API_PREFIX = resolveApiPrefix();
-
-function deepClone(value) {
-    if (typeof structuredClone === "function") {
-        return structuredClone(value);
-    }
-    return JSON.parse(JSON.stringify(value));
-}
-
-function isObject(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function pathToString(path) {
-    return path.map(String).join(".");
-}
-
-function setAtPath(root, path, nextValue) {
-    if (path.length === 0) {
-        return nextValue;
-    }
-
-    const nextRoot = deepClone(root);
-    let cursor = nextRoot;
-
-    for (let index = 0; index < path.length - 1; index += 1) {
-        cursor = cursor[path[index]];
-    }
-
-    cursor[path[path.length - 1]] = nextValue;
-    return nextRoot;
-}
-
-function defaultValueFromSample(sample) {
-    if (Array.isArray(sample)) {
-        return [];
-    }
-    if (isObject(sample)) {
-        return {};
-    }
-    if (typeof sample === "number") {
-        return 0;
-    }
-    if (typeof sample === "boolean") {
-        return false;
-    }
-    return "";
-}
-
-function formatTime(value) {
-    if (!value) {
-        return "-";
-    }
-
-    try {
-        return new Date(value).toLocaleString();
-    } catch {
-        return value;
-    }
-}
-
-async function requestAdmin(path, options = {}, apiKey = "") {
-    const headers = {
-        ...(options.headers || {})
+    var state = {
+        apiKey: "",
+        connected: false,
+        busy: false,
+        sections: [],
+        activeSection: "",
+        sourceFile: "",
+        contentText: "",
+        backups: [],
+        statusText: "Please enter ADMIN_API_KEY to connect.",
+        errorText: "",
+        publish: {
+            status: "idle",
+            startedAt: null,
+            finishedAt: null,
+            lastError: null,
+            lastOutput: null
+        }
     };
 
-    if (apiKey) {
-        headers["X-Admin-API-Key"] = apiKey;
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\"/g, "&quot;")
+            .replace(/'/g, "&#39;");
     }
 
-    if (options.body) {
-        headers["Content-Type"] = "application/json";
-    }
-
-    const response = await fetch(`${API_PREFIX}${path}`, {
-        ...options,
-        headers
-    });
-
-    const text = await response.text();
-    let result = {};
-
-    if (text) {
-        try {
-            result = JSON.parse(text);
-        } catch {
-            result = { detail: text };
+    function formatTime(value) {
+        if (!value) {
+            return "-";
         }
-    }
-
-    if (!response.ok) {
-        throw new Error(result.detail || `Request failed: ${response.status}`);
-    }
-
-    return result;
-}
-
-function PrimitiveEditor({ label, value, path, onChange }) {
-    const key = pathToString(path);
-
-    if (typeof value === "boolean") {
-        return html`
-            <label className="field" key=${key}>
-                <span className="field-label">${label}</span>
-                <input
-                    type="checkbox"
-                    checked=${Boolean(value)}
-                    onChange=${(event) => onChange(path, event.target.checked)}
-                />
-            </label>
-        `;
-    }
-
-    if (typeof value === "number") {
-        return html`
-            <label className="field" key=${key}>
-                <span className="field-label">${label}</span>
-                <input
-                    type="number"
-                    value=${Number.isFinite(value) ? String(value) : "0"}
-                    onInput=${(event) => {
-                const textValue = event.target.value;
-                const nextValue = textValue === "" ? 0 : Number(textValue);
-                onChange(path, Number.isFinite(nextValue) ? nextValue : 0);
-            }}
-                />
-            </label>
-        `;
-    }
-
-    const normalized = value == null ? "" : String(value);
-    const useTextarea = normalized.length > 120 || normalized.includes("\n");
-
-    if (useTextarea) {
-        return html`
-            <label className="field" key=${key}>
-                <span className="field-label">${label}</span>
-                <textarea
-                    value=${normalized}
-                    onInput=${(event) => onChange(path, event.target.value)}
-                ></textarea>
-            </label>
-        `;
-    }
-
-    return html`
-        <label className="field" key=${key}>
-            <span className="field-label">${label}</span>
-            <input
-                type="text"
-                value=${normalized}
-                onInput=${(event) => onChange(path, event.target.value)}
-            />
-        </label>
-    `;
-}
-
-function EditorNode({ label, value, path, onChange, depth = 0 }) {
-    const depthLevel = Math.min(depth, 4);
-
-    if (Array.isArray(value)) {
-        return html`
-            <section className=${`node depth-${depthLevel}`}>
-                <div className="node-title-row">
-                    <h4>${label}</h4>
-                    <button
-                        className="secondary"
-                        type="button"
-                        onClick=${() => {
-                const sample = value.length > 0 ? value[value.length - 1] : "";
-                const nextItems = [...value, defaultValueFromSample(sample)];
-                onChange(path, nextItems);
-            }}
-                    >
-                        Add Item
-                    </button>
-                </div>
-
-                <div className="array-list">
-                    ${value.map((item, index) => html`
-                        <div className="array-item" key=${pathToString([...path, index])}>
-                            <div className="array-item-header">
-                                <span>${`Item ${index + 1}`}</span>
-                                <button
-                                    className="danger"
-                                    type="button"
-                                    onClick=${() => {
-                    const nextItems = [...value];
-                    nextItems.splice(index, 1);
-                    onChange(path, nextItems);
-                }}
-                                >
-                                    Remove
-                                </button>
-                            </div>
-                            <${EditorNode}
-                                label=${Array.isArray(item) || isObject(item) ? "entry" : `${label}[${index}]`}
-                                value=${item}
-                                path=${[...path, index]}
-                                onChange=${onChange}
-                                depth=${depth + 1}
-                            />
-                        </div>
-                    `)}
-                </div>
-            </section>
-        `;
-    }
-
-    if (isObject(value)) {
-        return html`
-            <section className=${`node depth-${depthLevel}`}>
-                <div className="node-title-row">
-                    <h4>${label}</h4>
-                </div>
-                <div className="node-children">
-                    ${Object.entries(value).map(([childKey, childValue]) => html`
-                        <${EditorNode}
-                            key=${pathToString([...path, childKey])}
-                            label=${childKey}
-                            value=${childValue}
-                            path=${[...path, childKey]}
-                            onChange=${onChange}
-                            depth=${depth + 1}
-                        />
-                    `)}
-                </div>
-            </section>
-        `;
-    }
-
-    return html`<${PrimitiveEditor} label=${label} value=${value} path=${path} onChange=${onChange} />`;
-}
-
-function AdminApp() {
-    const [apiKeyInput, setApiKeyInput] = useState(() => sessionStorage.getItem("adminApiKey") || "");
-    const [apiKey, setApiKey] = useState(() => sessionStorage.getItem("adminApiKey") || "");
-    const [sections, setSections] = useState([]);
-    const [activeSection, setActiveSection] = useState("");
-    const [content, setContent] = useState(null);
-    const [sourceFile, setSourceFile] = useState("");
-    const [backups, setBackups] = useState([]);
-    const [isBusy, setIsBusy] = useState(false);
-    const [statusMessage, setStatusMessage] = useState("Ready.");
-    const [errorMessage, setErrorMessage] = useState("");
-    const [publishState, setPublishState] = useState({ status: "idle" });
-
-    async function loadSections(nextApiKey) {
-        const resolvedKey = nextApiKey ?? apiKey;
-        setIsBusy(true);
-        setErrorMessage("");
 
         try {
-            const result = await requestAdmin("/sections", {}, resolvedKey);
-            const nextSections = result.sections || [];
-            setSections(nextSections);
-
-            if (nextSections.length > 0) {
-                const target = activeSection || nextSections[0].key;
-                setActiveSection(target);
-                await loadSection(target, resolvedKey);
-            }
-
-            setStatusMessage("Connected.");
-        } catch (error) {
-            setErrorMessage(error.message || "Unable to load sections.");
-        } finally {
-            setIsBusy(false);
+            return new Date(value).toLocaleString();
+        } catch (_error) {
+            return String(value);
         }
     }
 
-    async function loadSection(section, nextApiKey) {
-        const resolvedKey = nextApiKey ?? apiKey;
-        setIsBusy(true);
-        setErrorMessage("");
+    function setBusy(nextBusy) {
+        state.busy = Boolean(nextBusy);
+        render();
+    }
 
-        try {
-            const contentResult = await requestAdmin(`/content/${section}`, {}, resolvedKey);
-            const backupResult = await requestAdmin(`/backups/${section}`, {}, resolvedKey);
+    function setStatus(message) {
+        state.statusText = message;
+        state.errorText = "";
+        render();
+    }
 
-            setContent(contentResult.content);
-            setSourceFile(contentResult.sourceFile || "");
-            setBackups(backupResult.backups || []);
-            setStatusMessage(`Loaded ${section}.`);
-        } catch (error) {
-            setErrorMessage(error.message || "Unable to load section content.");
-        } finally {
-            setIsBusy(false);
+    function setError(message) {
+        state.errorText = message;
+        render();
+    }
+
+    function stopPublishPolling() {
+        if (POLL_TIMER !== null) {
+            window.clearInterval(POLL_TIMER);
+            POLL_TIMER = null;
         }
     }
 
-    async function connect() {
-        const nextKey = apiKeyInput.trim();
+    function startPublishPolling() {
+        stopPublishPolling();
 
-        if (nextKey) {
-            sessionStorage.setItem("adminApiKey", nextKey);
-        } else {
-            sessionStorage.removeItem("adminApiKey");
-        }
-
-        setApiKey(nextKey);
-        await loadSections(nextKey);
-    }
-
-    async function saveSection() {
-        if (!activeSection || !content) {
+        if (state.publish.status !== "running") {
             return;
         }
 
-        setIsBusy(true);
-        setErrorMessage("");
+        POLL_TIMER = window.setInterval(function () {
+            void refreshPublishStatus();
+        }, 2200);
+    }
+
+    async function requestAdmin(path, options) {
+        var requestOptions = options || {};
+        var headers = Object.assign({}, requestOptions.headers || {});
+
+        if (state.apiKey) {
+            headers["X-Admin-API-Key"] = state.apiKey;
+        }
+
+        if (requestOptions.body) {
+            headers["Content-Type"] = "application/json";
+        }
+
+        var response = await fetch(API_PREFIX + path, Object.assign({}, requestOptions, { headers: headers }));
+        var text = await response.text();
+        var payload = {};
+
+        if (text) {
+            try {
+                payload = JSON.parse(text);
+            } catch (_error) {
+                payload = { detail: text };
+            }
+        }
+
+        if (!response.ok) {
+            throw new Error(payload.detail || ("Request failed: " + response.status));
+        }
+
+        return payload;
+    }
+
+    async function loadSections() {
+        var result = await requestAdmin("/sections");
+        state.sections = Array.isArray(result.sections) ? result.sections : [];
+
+        if (state.sections.length === 0) {
+            state.activeSection = "";
+            state.sourceFile = "";
+            state.contentText = "{}";
+            state.backups = [];
+            return;
+        }
+
+        if (!state.activeSection || !state.sections.some(function (item) { return item.key === state.activeSection; })) {
+            state.activeSection = state.sections[0].key;
+        }
+
+        await loadSection(state.activeSection);
+    }
+
+    async function loadSection(section) {
+        var target = section || state.activeSection;
+        if (!target) {
+            return;
+        }
+
+        var contentResult = await requestAdmin("/content/" + encodeURIComponent(target));
+        var backupResult = await requestAdmin("/backups/" + encodeURIComponent(target));
+
+        state.activeSection = target;
+        state.sourceFile = contentResult.sourceFile || "";
+        state.contentText = JSON.stringify(contentResult.content || {}, null, 2);
+        state.backups = Array.isArray(backupResult.backups) ? backupResult.backups : [];
+    }
+
+    async function connectWithKey() {
+        var input = document.getElementById("api-key-input");
+        var nextKey = input ? input.value.trim() : "";
+
+        if (!nextKey) {
+            setError("ADMIN_API_KEY is required.");
+            return;
+        }
+
+        state.apiKey = nextKey;
+        setBusy(true);
 
         try {
-            const result = await requestAdmin(
-                `/content/${activeSection}`,
-                {
-                    method: "PUT",
-                    body: JSON.stringify({ content })
-                },
-                apiKey
-            );
-
-            await loadSection(activeSection, apiKey);
-            setStatusMessage(`Saved at ${formatTime(result.updatedAt)}.${result.publishStatus ? ` Publish: ${result.publishStatus}.` : ""}`);
+            await loadSections();
+            state.connected = true;
+            setStatus("Connected.");
         } catch (error) {
-            setErrorMessage(error.message || "Save failed.");
+            state.apiKey = "";
+            state.connected = false;
+            setError(error.message || "Failed to connect.");
         } finally {
-            setIsBusy(false);
+            setBusy(false);
         }
     }
 
-    async function triggerPublish() {
-        setIsBusy(true);
-        setErrorMessage("");
+    function logout() {
+        stopPublishPolling();
+        state.apiKey = "";
+        state.connected = false;
+        state.sections = [];
+        state.activeSection = "";
+        state.sourceFile = "";
+        state.contentText = "";
+        state.backups = [];
+        state.publish = {
+            status: "idle",
+            startedAt: null,
+            finishedAt: null,
+            lastError: null,
+            lastOutput: null
+        };
+        setStatus("Logged out. This page does not persist password.");
+    }
+
+    async function saveContent() {
+        if (!state.activeSection) {
+            return;
+        }
+
+        var editor = document.getElementById("json-editor");
+        var nextText = editor ? editor.value : state.contentText;
+        var parsed;
 
         try {
-            const result = await requestAdmin("/publish", { method: "POST" }, apiKey);
-            setPublishState(result);
-            setStatusMessage(`Publish status: ${result.status}.`);
+            parsed = JSON.parse(nextText);
         } catch (error) {
-            setErrorMessage(error.message || "Publish trigger failed.");
+            setError("JSON parse error: " + error.message);
+            return;
+        }
+
+        state.contentText = JSON.stringify(parsed, null, 2);
+        setBusy(true);
+
+        try {
+            var result = await requestAdmin("/content/" + encodeURIComponent(state.activeSection), {
+                method: "PUT",
+                body: JSON.stringify({ content: parsed })
+            });
+
+            await loadSection(state.activeSection);
+            var publishText = result.publishStatus ? (" Publish: " + result.publishStatus + ".") : "";
+            setStatus("Saved at " + formatTime(result.updatedAt) + "." + publishText);
+            startPublishPolling();
+        } catch (error) {
+            setError(error.message || "Save failed.");
         } finally {
-            setIsBusy(false);
+            setBusy(false);
+        }
+    }
+
+    async function publishNow() {
+        setBusy(true);
+
+        try {
+            state.publish = await requestAdmin("/publish", { method: "POST" });
+            setStatus("Publish status: " + state.publish.status + ".");
+            startPublishPolling();
+        } catch (error) {
+            setError(error.message || "Publish trigger failed.");
+        } finally {
+            setBusy(false);
         }
     }
 
     async function refreshPublishStatus() {
         try {
-            const result = await requestAdmin("/publish/status", {}, apiKey);
-            setPublishState(result);
-        } catch {
-            // ignore transient polling errors
+            state.publish = await requestAdmin("/publish/status");
+            render();
+
+            if (state.publish.status !== "running") {
+                stopPublishPolling();
+            }
+        } catch (_error) {
+            // ignore transient poll errors
         }
     }
 
-    async function rollbackTo(backupName) {
-        if (!activeSection || !backupName) {
+    async function rollbackTo(name) {
+        if (!state.activeSection || !name) {
             return;
         }
 
-        const ok = window.confirm(`Rollback ${activeSection} using ${backupName}?`);
+        var ok = window.confirm("Rollback " + state.activeSection + " using " + name + "?");
         if (!ok) {
             return;
         }
 
-        setIsBusy(true);
-        setErrorMessage("");
+        setBusy(true);
 
         try {
-            const encoded = encodeURIComponent(backupName);
-            const result = await requestAdmin(`/rollback/${activeSection}/${encoded}`, { method: "POST" }, apiKey);
-            await loadSection(activeSection, apiKey);
-            setStatusMessage(`Rollback completed at ${formatTime(result.updatedAt)}.`);
+            var encoded = encodeURIComponent(name);
+            var result = await requestAdmin("/rollback/" + encodeURIComponent(state.activeSection) + "/" + encoded, {
+                method: "POST"
+            });
+
+            await loadSection(state.activeSection);
+            setStatus("Rollback completed at " + formatTime(result.updatedAt) + ".");
+            startPublishPolling();
         } catch (error) {
-            setErrorMessage(error.message || "Rollback failed.");
+            setError(error.message || "Rollback failed.");
         } finally {
-            setIsBusy(false);
+            setBusy(false);
         }
     }
 
-    function handleValueChange(path, nextValue) {
-        setContent((previous) => setAtPath(previous, path, nextValue));
-    }
-
-    useEffect(() => {
-        if (publishState.status !== "running") {
-            return undefined;
+    async function selectSection(section) {
+        if (!section || section === state.activeSection) {
+            return;
         }
 
-        const timer = window.setInterval(() => {
-            void refreshPublishStatus();
-        }, 2200);
+        setBusy(true);
 
-        return () => window.clearInterval(timer);
-    }, [publishState.status, apiKey]);
+        try {
+            await loadSection(section);
+            setStatus("Loaded " + section + ".");
+        } catch (error) {
+            setError(error.message || "Unable to load section.");
+        } finally {
+            setBusy(false);
+        }
+    }
 
-    useEffect(() => {
-        void loadSections(apiKey);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    async function reloadActiveSection() {
+        if (!state.activeSection) {
+            return;
+        }
 
-    return html`
-        <div className="admin-shell">
-            <header className="admin-header">
-                <h1 className="admin-title">Personal Homepage Admin</h1>
-                <p className="admin-subtitle">Edit data sections, save changes, and trigger publish from one place.</p>
-                <div className="top-actions">
-                    <input
-                        type="password"
-                        placeholder="Optional API key (X-Admin-API-Key)"
-                        value=${apiKeyInput}
-                        onInput=${(event) => setApiKeyInput(event.target.value)}
-                    />
-                    <button type="button" onClick=${connect} disabled=${isBusy}>Connect</button>
-                    <button
-                        className="secondary"
-                        type="button"
-                        onClick=${() => activeSection && loadSection(activeSection, apiKey)}
-                        disabled=${isBusy || !activeSection}
-                    >
-                        Reload Section
-                    </button>
-                    <button type="button" onClick=${saveSection} disabled=${isBusy || !content}>Save</button>
-                    <button className="secondary" type="button" onClick=${triggerPublish} disabled=${isBusy}>Publish</button>
-                </div>
-                <div className=${`status-line ${errorMessage ? "error" : ""}`}>
-                    ${errorMessage || statusMessage}
-                </div>
-            </header>
+        setBusy(true);
 
-            <div className="admin-layout">
-                <aside className="panel">
-                    <h2>Sections</h2>
-                    <div className="section-list">
-                        ${sections.map((item) => html`
-                            <button
-                                key=${item.key}
-                                className=${item.key === activeSection ? "active" : "ghost"}
-                                type="button"
-                                disabled=${isBusy}
-                                onClick=${() => {
-            setActiveSection(item.key);
-            void loadSection(item.key, apiKey);
-        }}
-                            >
-                                ${item.key}
-                            </button>
-                        `)}
-                    </div>
+        try {
+            await loadSection(state.activeSection);
+            setStatus("Reloaded " + state.activeSection + ".");
+        } catch (error) {
+            setError(error.message || "Unable to reload section.");
+        } finally {
+            setBusy(false);
+        }
+    }
 
-                    <h3 style=${{ marginTop: "16px" }}>Backups</h3>
-                    <div className="backup-list">
-                        ${backups.length === 0 ? html`<p className="admin-subtitle">No backups yet.</p>` : backups.map((item) => html`
-                            <div className="backup-item" key=${item.name}>
-                                <div><strong>${item.name}</strong></div>
-                                <div className="backup-meta">${formatTime(item.createdAt)} | ${item.sizeBytes} bytes</div>
-                                <button
-                                    className="danger"
-                                    type="button"
-                                    disabled=${isBusy}
-                                    onClick=${() => rollbackTo(item.name)}
-                                >
-                                    Rollback
-                                </button>
-                            </div>
-                        `)}
-                    </div>
-                </aside>
+    function bindEvents() {
+        var connectButton = document.getElementById("connect-button");
+        if (connectButton) {
+            connectButton.addEventListener("click", function () {
+                void connectWithKey();
+            });
+        }
 
-                <main className="panel">
-                    <div className="editor-toolbar">
-                        <h2>Editor</h2>
-                        <span className="source-file">${sourceFile ? `Source: ${sourceFile}` : "No section loaded."}</span>
-                        <span className="source-file">
-                            ${`Publish: ${publishState.status || "idle"} | Started: ${formatTime(publishState.startedAt)} | Finished: ${formatTime(publishState.finishedAt)}`}
-                        </span>
-                    </div>
+        var logoutButton = document.getElementById("logout-button");
+        if (logoutButton) {
+            logoutButton.addEventListener("click", logout);
+        }
 
-                    ${publishState.lastError ? html`<div className="status-line error">${publishState.lastError}</div>` : null}
-                    ${publishState.lastOutput ? html`<div className="status-line">${publishState.lastOutput}</div>` : null}
+        var saveButton = document.getElementById("save-button");
+        if (saveButton) {
+            saveButton.addEventListener("click", function () {
+                void saveContent();
+            });
+        }
 
-                    ${content ? html`
-                        <${EditorNode}
-                            label=${activeSection || "section"}
-                            value=${content}
-                            path=${[]}
-                            onChange=${handleValueChange}
-                        />
-                    ` : html`<p className="admin-subtitle">Connect and select a section to start editing.</p>`}
-                </main>
-            </div>
-        </div>
-    `;
-}
+        var publishButton = document.getElementById("publish-button");
+        if (publishButton) {
+            publishButton.addEventListener("click", function () {
+                void publishNow();
+            });
+        }
 
-createRoot(document.getElementById("admin-root")).render(html`<${AdminApp} />`);
+        var refreshButton = document.getElementById("refresh-button");
+        if (refreshButton) {
+            refreshButton.addEventListener("click", function () {
+                void reloadActiveSection();
+            });
+        }
+
+        var pollButton = document.getElementById("publish-refresh-button");
+        if (pollButton) {
+            pollButton.addEventListener("click", function () {
+                void refreshPublishStatus();
+            });
+        }
+
+        var sectionButtons = document.querySelectorAll("[data-section-key]");
+        sectionButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                var key = button.getAttribute("data-section-key") || "";
+                void selectSection(key);
+            });
+        });
+
+        var rollbackButtons = document.querySelectorAll("[data-backup-name]");
+        rollbackButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                var backupName = button.getAttribute("data-backup-name") || "";
+                void rollbackTo(backupName);
+            });
+        });
+
+        var apiKeyInput = document.getElementById("api-key-input");
+        if (apiKeyInput) {
+            apiKeyInput.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    void connectWithKey();
+                }
+            });
+        }
+    }
+
+    function renderAuthView(root) {
+        root.innerHTML = ""
+            + "<div class=\"auth-wrap\">"
+            + "<section class=\"auth-card\">"
+            + "<h1 class=\"admin-title\">Personal Homepage Admin</h1>"
+            + "<p class=\"admin-subtitle\">Enter ADMIN_API_KEY to connect. Password is never stored in browser storage.</p>"
+            + "<label class=\"field\" for=\"api-key-input\">"
+            + "<span class=\"field-label\">ADMIN_API_KEY</span>"
+            + "<input id=\"api-key-input\" type=\"password\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"Paste your key\" "
+            + (state.busy ? "disabled" : "")
+            + ">"
+            + "</label>"
+            + "<div class=\"auth-actions\">"
+            + "<button id=\"connect-button\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Connect</button>"
+            + "</div>"
+            + "<div class=\"status-line " + (state.errorText ? "error" : "") + "\">"
+            + escapeHtml(state.errorText || state.statusText)
+            + "</div>"
+            + "</section>"
+            + "</div>";
+    }
+
+    function renderAdminView(root) {
+        var sectionsHtml = state.sections.map(function (item) {
+            var activeClass = item.key === state.activeSection ? "active" : "ghost";
+            return ""
+                + "<button type=\"button\" class=\"" + activeClass + "\" data-section-key=\"" + escapeHtml(item.key) + "\" "
+                + (state.busy ? "disabled" : "")
+                + ">"
+                + escapeHtml(item.key)
+                + "</button>";
+        }).join("");
+
+        var backupsHtml = state.backups.length === 0
+            ? "<p class=\"admin-subtitle\">No backups yet.</p>"
+            : state.backups.map(function (item) {
+                return ""
+                    + "<div class=\"backup-item\">"
+                    + "<div><strong>" + escapeHtml(item.name) + "</strong></div>"
+                    + "<div class=\"backup-meta\">" + escapeHtml(formatTime(item.createdAt)) + " | " + escapeHtml(item.sizeBytes) + " bytes</div>"
+                    + "<button class=\"danger\" type=\"button\" data-backup-name=\"" + escapeHtml(item.name) + "\" "
+                    + (state.busy ? "disabled" : "")
+                    + ">Rollback</button>"
+                    + "</div>";
+            }).join("");
+
+        var publishError = state.publish.lastError
+            ? "<div class=\"status-line error\">" + escapeHtml(state.publish.lastError) + "</div>"
+            : "";
+
+        var publishOutput = state.publish.lastOutput
+            ? "<div class=\"status-line\"><pre class=\"mono-output\">" + escapeHtml(state.publish.lastOutput) + "</pre></div>"
+            : "";
+
+        root.innerHTML = ""
+            + "<div class=\"admin-shell\">"
+            + "<header class=\"admin-header\">"
+            + "<h1 class=\"admin-title\">Personal Homepage Admin</h1>"
+            + "<p class=\"admin-subtitle\">Stable mode: plain JavaScript, no external CDN dependencies.</p>"
+            + "<div class=\"top-actions\">"
+            + "<button id=\"refresh-button\" class=\"secondary\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Reload Section</button>"
+            + "<button id=\"save-button\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Save</button>"
+            + "<button id=\"publish-button\" class=\"secondary\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Publish</button>"
+            + "<button id=\"publish-refresh-button\" class=\"ghost\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Refresh Publish</button>"
+            + "<button id=\"logout-button\" class=\"danger\" type=\"button\">Logout</button>"
+            + "</div>"
+            + "<div class=\"status-line " + (state.errorText ? "error" : "") + "\">"
+            + escapeHtml(state.errorText || state.statusText)
+            + "</div>"
+            + "</header>"
+            + "<div class=\"admin-layout\">"
+            + "<aside class=\"panel\">"
+            + "<h2>Sections</h2>"
+            + "<div class=\"section-list\">" + sectionsHtml + "</div>"
+            + "<h3 class=\"panel-subhead\">Backups</h3>"
+            + "<div class=\"backup-list\">" + backupsHtml + "</div>"
+            + "</aside>"
+            + "<main class=\"panel\">"
+            + "<div class=\"editor-toolbar\">"
+            + "<h2>Editor</h2>"
+            + "<span class=\"source-file\">Source: " + escapeHtml(state.sourceFile || "-") + "</span>"
+            + "<span class=\"source-file\">Publish: " + escapeHtml(state.publish.status || "idle")
+            + " | Started: " + escapeHtml(formatTime(state.publish.startedAt))
+            + " | Finished: " + escapeHtml(formatTime(state.publish.finishedAt)) + "</span>"
+            + "</div>"
+            + publishError
+            + publishOutput
+            + "<label class=\"field\" for=\"json-editor\">"
+            + "<span class=\"field-label\">Section JSON</span>"
+            + "<textarea id=\"json-editor\" class=\"json-editor\" spellcheck=\"false\" " + (state.busy ? "disabled" : "") + "></textarea>"
+            + "</label>"
+            + "</main>"
+            + "</div>"
+            + "</div>";
+
+        var editor = document.getElementById("json-editor");
+        if (editor) {
+            editor.value = state.contentText || "";
+        }
+    }
+
+    function render() {
+        var root = document.getElementById("admin-root");
+        if (!root) {
+            return;
+        }
+
+        if (!state.connected) {
+            renderAuthView(root);
+        } else {
+            renderAdminView(root);
+        }
+
+        bindEvents();
+    }
+
+    function showFatalError(error) {
+        var root = document.getElementById("admin-root");
+        if (!root) {
+            return;
+        }
+
+        var message = error && error.message ? error.message : String(error || "Unknown error");
+        root.innerHTML = ""
+            + "<div class=\"auth-wrap\">"
+            + "<section class=\"auth-card\">"
+            + "<h1 class=\"admin-title\">Admin UI Crash</h1>"
+            + "<p class=\"admin-subtitle\">Unexpected error occurred while rendering admin page.</p>"
+            + "<div class=\"status-line error\">" + escapeHtml(message) + "</div>"
+            + "</section>"
+            + "</div>";
+    }
+
+    try {
+        render();
+    } catch (error) {
+        showFatalError(error);
+    }
+})();

@@ -119,6 +119,7 @@ Checklist before you publish content: `docs/website-content-checklist.md`.
 3. 本地开发脚本会从以下位置读取 `ADMIN_API_KEY`（按优先级）：
    - `api/.env`
    - `deploy/env/api.env`
+4. Admin 页面不会把密钥写入 `localStorage/sessionStorage`；刷新后需要重新输入。
 
 ### 服务器同步仓库后修改管理员密钥
 
@@ -130,15 +131,7 @@ sudo vim /opt/personal-homepage/deploy/env/api.env
 # ADMIN_API_KEY=your-new-strong-key
 ```
 
-2. 修改 Nginx 管理代理里的同一份密钥：
-
-```bash
-sudo vim /opt/personal-homepage/deploy/nginx/personal-homepage.conf
-# location /api/admin/ 里：
-# set $admin_api_key "your-new-strong-key";
-```
-
-3. 应用配置：
+2. 应用配置：
 
 ```bash
 sudo systemctl restart personal-homepage-api

@@ -32,6 +32,26 @@ body {
     gap: 16px;
 }
 
+.auth-wrap {
+    width: min(640px, calc(100% - 24px));
+    margin: 48px auto;
+}
+
+.auth-card {
+    background: var(--admin-paper);
+    border: 1px solid var(--admin-line);
+    border-radius: 16px;
+    box-shadow: var(--admin-shadow);
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+}
+
+.auth-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
 .admin-header {
     background: var(--admin-paper);
     border: 1px solid var(--admin-line);
@@ -119,6 +139,10 @@ body {
 .backup-meta {
     color: var(--admin-muted);
     font-size: 0.78rem;
+}
+
+.panel-subhead {
+    margin-top: 16px !important;
 }
 
 .editor-toolbar {
@@ -237,6 +261,21 @@ textarea {
     resize: vertical;
 }
 
+.json-editor {
+    min-height: 420px;
+    font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.87rem;
+    line-height: 1.45;
+}
+
+.mono-output {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.8rem;
+}
+
 button {
     border: 1px solid transparent;
     border-radius: 8px;
@@ -287,5 +326,9 @@ button:disabled {
     .top-actions input[type="password"] {
         min-width: 0;
         width: 100%;
+    }
+
+    .json-editor {
+        min-height: 320px;
     }
 }
