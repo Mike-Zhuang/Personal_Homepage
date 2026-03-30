@@ -27,7 +27,9 @@
         sections: [],
         activeSection: "",
         sourceFile: "",
-        contentText: "",
+        contentObject: {},
+        contentText: "{}",
+        editorMode: "form",
         backups: [],
         statusText: "Please enter ADMIN_API_KEY to connect.",
         errorText: "",
@@ -39,6 +41,82 @@
             lastOutput: null
         }
     };
+
+    function deepClone(value) {
+        return JSON.parse(JSON.stringify(value));
+    }
+
+    function isObject(value) {
+        return value !== null && typeof value === "object" && !Array.isArray(value);
+    }
+
+    function pathToString(path) {
+        return path.map(String).join(".");
+    }
+
+    function parsePath(text) {
+        if (!text) {
+            return [];
+        }
+
+        return text
+            .split(".")
+            .filter(function (segment) {
+                return segment.length > 0;
+            })
+            .map(function (segment) {
+                return /^\d+$/.test(segment) ? Number(segment) : segment;
+            });
+    }
+
+    function getAtPath(root, path) {
+        var cursor = root;
+
+        for (var index = 0; index < path.length; index += 1) {
+            if (cursor == null) {
+                return undefined;
+            }
+            cursor = cursor[path[index]];
+        }
+
+        return cursor;
+    }
+
+    function setAtPath(root, path, nextValue) {
+        if (path.length === 0) {
+            return nextValue;
+        }
+
+        var nextRoot = deepClone(root);
+        var cursor = nextRoot;
+
+        for (var index = 0; index < path.length - 1; index += 1) {
+            cursor = cursor[path[index]];
+        }
+
+        cursor[path[path.length - 1]] = nextValue;
+        return nextRoot;
+    }
+
+    function defaultValueFromSample(sample) {
+        if (Array.isArray(sample)) {
+            return [];
+        }
+
+        if (isObject(sample)) {
+            return {};
+        }
+
+        if (typeof sample === "number") {
+            return 0;
+        }
+
+        if (typeof sample === "boolean") {
+            return false;
+        }
+
+        return "";
+    }
 
     function escapeHtml(value) {
         return String(value)
@@ -134,6 +212,7 @@
         if (state.sections.length === 0) {
             state.activeSection = "";
             state.sourceFile = "";
+            state.contentObject = {};
             state.contentText = "{}";
             state.backups = [];
             return;
@@ -157,7 +236,8 @@
 
         state.activeSection = target;
         state.sourceFile = contentResult.sourceFile || "";
-        state.contentText = JSON.stringify(contentResult.content || {}, null, 2);
+        state.contentObject = deepClone(contentResult.content || {});
+        state.contentText = JSON.stringify(state.contentObject, null, 2);
         state.backups = Array.isArray(backupResult.backups) ? backupResult.backups : [];
     }
 
@@ -193,7 +273,9 @@
         state.sections = [];
         state.activeSection = "";
         state.sourceFile = "";
-        state.contentText = "";
+        state.contentObject = {};
+        state.contentText = "{}";
+        state.editorMode = "form";
         state.backups = [];
         state.publish = {
             status: "idle",
@@ -205,11 +287,7 @@
         setStatus("Logged out. This page does not persist password.");
     }
 
-    async function saveContent() {
-        if (!state.activeSection) {
-            return;
-        }
-
+    function syncJsonEditorToObject() {
         var editor = document.getElementById("json-editor");
         var nextText = editor ? editor.value : state.contentText;
         var parsed;
@@ -218,16 +296,110 @@
             parsed = JSON.parse(nextText);
         } catch (error) {
             setError("JSON parse error: " + error.message);
+            return false;
+        }
+
+        state.contentObject = deepClone(parsed);
+        state.contentText = JSON.stringify(parsed, null, 2);
+        return true;
+    }
+
+    function switchEditorMode(nextMode) {
+        if (nextMode !== "form" && nextMode !== "json") {
             return;
         }
 
-        state.contentText = JSON.stringify(parsed, null, 2);
+        if (nextMode === state.editorMode) {
+            return;
+        }
+
+        if (nextMode === "form" && state.editorMode === "json") {
+            if (!syncJsonEditorToObject()) {
+                return;
+            }
+        }
+
+        if (nextMode === "json") {
+            state.contentText = JSON.stringify(state.contentObject || {}, null, 2);
+        }
+
+        state.editorMode = nextMode;
+        render();
+    }
+
+    function updateFieldFromElement(element) {
+        var rawPath = element.getAttribute("data-field-path") || "";
+        var rawType = element.getAttribute("data-field-type") || "string";
+        var path = parsePath(rawPath);
+        var nextValue;
+
+        if (rawType === "boolean") {
+            nextValue = Boolean(element.checked);
+        } else if (rawType === "number") {
+            var parsed = Number(element.value);
+            nextValue = Number.isFinite(parsed) ? parsed : 0;
+        } else {
+            nextValue = element.value;
+        }
+
+        state.contentObject = setAtPath(state.contentObject, path, nextValue);
+        state.contentText = JSON.stringify(state.contentObject, null, 2);
+    }
+
+    function addArrayItem(pathText) {
+        var path = parsePath(pathText);
+        var arrayValue = getAtPath(state.contentObject, path);
+
+        if (!Array.isArray(arrayValue)) {
+            return;
+        }
+
+        var sample = arrayValue.length > 0 ? arrayValue[arrayValue.length - 1] : "";
+        var nextItems = arrayValue.slice();
+        nextItems.push(defaultValueFromSample(sample));
+
+        state.contentObject = setAtPath(state.contentObject, path, nextItems);
+        state.contentText = JSON.stringify(state.contentObject, null, 2);
+        render();
+    }
+
+    function removeArrayItem(pathText, indexText) {
+        var path = parsePath(pathText);
+        var index = Number(indexText);
+        var arrayValue = getAtPath(state.contentObject, path);
+
+        if (!Array.isArray(arrayValue)) {
+            return;
+        }
+
+        if (!Number.isInteger(index) || index < 0 || index >= arrayValue.length) {
+            return;
+        }
+
+        var nextItems = arrayValue.slice();
+        nextItems.splice(index, 1);
+        state.contentObject = setAtPath(state.contentObject, path, nextItems);
+        state.contentText = JSON.stringify(state.contentObject, null, 2);
+        render();
+    }
+
+    async function saveContent() {
+        if (!state.activeSection) {
+            return;
+        }
+
+        if (state.editorMode === "json" && !syncJsonEditorToObject()) {
+            return;
+        }
+
+        var payloadObject = deepClone(state.contentObject);
+        state.contentText = JSON.stringify(payloadObject, null, 2);
         setBusy(true);
 
         try {
             var result = await requestAdmin("/content/" + encodeURIComponent(state.activeSection), {
                 method: "PUT",
-                body: JSON.stringify({ content: parsed })
+                body: JSON.stringify({ content: payloadObject })
             });
 
             await loadSection(state.activeSection);
@@ -371,6 +543,20 @@
             });
         }
 
+        var formModeButton = document.getElementById("editor-mode-form");
+        if (formModeButton) {
+            formModeButton.addEventListener("click", function () {
+                switchEditorMode("form");
+            });
+        }
+
+        var jsonModeButton = document.getElementById("editor-mode-json");
+        if (jsonModeButton) {
+            jsonModeButton.addEventListener("click", function () {
+                switchEditorMode("json");
+            });
+        }
+
         var sectionButtons = document.querySelectorAll("[data-section-key]");
         sectionButtons.forEach(function (button) {
             button.addEventListener("click", function () {
@@ -387,6 +573,41 @@
             });
         });
 
+        var fieldInputs = document.querySelectorAll("[data-field-path]");
+        fieldInputs.forEach(function (input) {
+            input.addEventListener("input", function () {
+                updateFieldFromElement(input);
+            });
+
+            input.addEventListener("change", function () {
+                updateFieldFromElement(input);
+            });
+        });
+
+        var arrayAddButtons = document.querySelectorAll("[data-array-add]");
+        arrayAddButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                var pathText = button.getAttribute("data-array-add") || "";
+                addArrayItem(pathText);
+            });
+        });
+
+        var arrayRemoveButtons = document.querySelectorAll("[data-array-remove]");
+        arrayRemoveButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                var pathText = button.getAttribute("data-array-remove") || "";
+                var indexText = button.getAttribute("data-array-index") || "";
+                removeArrayItem(pathText, indexText);
+            });
+        });
+
+        var jsonEditor = document.getElementById("json-editor");
+        if (jsonEditor) {
+            jsonEditor.addEventListener("input", function () {
+                state.contentText = jsonEditor.value;
+            });
+        }
+
         var apiKeyInput = document.getElementById("api-key-input");
         if (apiKeyInput) {
             apiKeyInput.addEventListener("keydown", function (event) {
@@ -396,6 +617,110 @@
                 }
             });
         }
+    }
+
+    function renderPrimitiveNode(label, value, path) {
+        var rawPath = pathToString(path);
+        var escapedPath = escapeHtml(rawPath);
+        var escapedLabel = escapeHtml(label);
+        var disabledAttr = state.busy ? "disabled" : "";
+
+        if (typeof value === "boolean") {
+            return ""
+                + "<label class=\"field checkbox-field\">"
+                + "<span class=\"field-label\">" + escapedLabel + "</span>"
+                + "<input type=\"checkbox\" data-field-path=\"" + escapedPath + "\" data-field-type=\"boolean\" "
+                + (value ? "checked " : "")
+                + disabledAttr
+                + ">"
+                + "</label>";
+        }
+
+        if (typeof value === "number") {
+            return ""
+                + "<label class=\"field\">"
+                + "<span class=\"field-label\">" + escapedLabel + "</span>"
+                + "<input type=\"number\" data-field-path=\"" + escapedPath + "\" data-field-type=\"number\" value=\""
+                + escapeHtml(String(value))
+                + "\" "
+                + disabledAttr
+                + ">"
+                + "</label>";
+        }
+
+        var normalized = value == null ? "" : String(value);
+        var useTextarea = normalized.length > 120 || normalized.indexOf("\n") >= 0;
+
+        if (useTextarea) {
+            return ""
+                + "<label class=\"field\">"
+                + "<span class=\"field-label\">" + escapedLabel + "</span>"
+                + "<textarea data-field-path=\"" + escapedPath + "\" data-field-type=\"string\" "
+                + disabledAttr
+                + ">"
+                + escapeHtml(normalized)
+                + "</textarea>"
+                + "</label>";
+        }
+
+        return ""
+            + "<label class=\"field\">"
+            + "<span class=\"field-label\">" + escapedLabel + "</span>"
+            + "<input type=\"text\" data-field-path=\"" + escapedPath + "\" data-field-type=\"string\" value=\""
+            + escapeHtml(normalized)
+            + "\" "
+            + disabledAttr
+            + ">"
+            + "</label>";
+    }
+
+    function renderFormNode(label, value, path, depth) {
+        var depthLevel = Math.min(depth, 4);
+        var disabledAttr = state.busy ? "disabled" : "";
+
+        if (Array.isArray(value)) {
+            var arrayPath = pathToString(path);
+            var itemsHtml = value.map(function (item, index) {
+                return ""
+                    + "<div class=\"array-item\">"
+                    + "<div class=\"array-item-header\">"
+                    + "<span>Item " + String(index + 1) + "</span>"
+                    + "<button class=\"danger\" type=\"button\" data-array-remove=\"" + escapeHtml(arrayPath) + "\" data-array-index=\"" + String(index) + "\" " + disabledAttr + ">Remove</button>"
+                    + "</div>"
+                    + renderFormNode(label + "[" + String(index) + "]", item, path.concat(index), depth + 1)
+                    + "</div>";
+            }).join("");
+
+            if (!itemsHtml) {
+                itemsHtml = "<p class=\"admin-subtitle\">Array is empty.</p>";
+            }
+
+            return ""
+                + "<section class=\"node depth-" + String(depthLevel) + "\">"
+                + "<div class=\"node-title-row\">"
+                + "<h4>" + escapeHtml(label) + "</h4>"
+                + "<button class=\"secondary\" type=\"button\" data-array-add=\"" + escapeHtml(arrayPath) + "\" " + disabledAttr + ">Add Item</button>"
+                + "</div>"
+                + "<div class=\"array-list\">" + itemsHtml + "</div>"
+                + "</section>";
+        }
+
+        if (isObject(value)) {
+            var keys = Object.keys(value);
+            var childrenHtml = keys.length === 0
+                ? "<p class=\"admin-subtitle\">Object is empty.</p>"
+                : keys.map(function (key) {
+                    return renderFormNode(key, value[key], path.concat(key), depth + 1);
+                }).join("");
+
+            return ""
+                + "<section class=\"node depth-" + String(depthLevel) + "\">"
+                + "<div class=\"node-title-row\"><h4>" + escapeHtml(label) + "</h4></div>"
+                + "<div class=\"node-children\">" + childrenHtml + "</div>"
+                + "</section>";
+        }
+
+        return renderPrimitiveNode(label, value, path);
     }
 
     function renderAuthView(root) {
@@ -452,6 +777,23 @@
             ? "<div class=\"status-line\"><pre class=\"mono-output\">" + escapeHtml(state.publish.lastOutput) + "</pre></div>"
             : "";
 
+        var editorBody = "";
+        if (state.editorMode === "json") {
+            editorBody = ""
+                + "<label class=\"field\" for=\"json-editor\">"
+                + "<span class=\"field-label\">Section JSON</span>"
+                + "<textarea id=\"json-editor\" class=\"json-editor\" spellcheck=\"false\" " + (state.busy ? "disabled" : "") + "></textarea>"
+                + "</label>";
+        } else {
+            editorBody = ""
+                + "<div class=\"field\">"
+                + "<span class=\"field-label\">Section Fields</span>"
+                + "<div class=\"form-editor-root\">"
+                + renderFormNode(state.activeSection || "section", state.contentObject || {}, [], 0)
+                + "</div>"
+                + "</div>";
+        }
+
         root.innerHTML = ""
             + "<div class=\"admin-shell\">"
             + "<header class=\"admin-header\">"
@@ -483,19 +825,22 @@
             + " | Started: " + escapeHtml(formatTime(state.publish.startedAt))
             + " | Finished: " + escapeHtml(formatTime(state.publish.finishedAt)) + "</span>"
             + "</div>"
+            + "<div class=\"editor-mode-toggle\">"
+            + "<button id=\"editor-mode-form\" type=\"button\" class=\"" + (state.editorMode === "form" ? "active" : "ghost") + "\" " + (state.busy ? "disabled" : "") + ">Field Editor</button>"
+            + "<button id=\"editor-mode-json\" type=\"button\" class=\"" + (state.editorMode === "json" ? "active" : "ghost") + "\" " + (state.busy ? "disabled" : "") + ">Raw JSON</button>"
+            + "</div>"
             + publishError
             + publishOutput
-            + "<label class=\"field\" for=\"json-editor\">"
-            + "<span class=\"field-label\">Section JSON</span>"
-            + "<textarea id=\"json-editor\" class=\"json-editor\" spellcheck=\"false\" " + (state.busy ? "disabled" : "") + "></textarea>"
-            + "</label>"
+            + editorBody
             + "</main>"
             + "</div>"
             + "</div>";
 
-        var editor = document.getElementById("json-editor");
-        if (editor) {
-            editor.value = state.contentText || "";
+        if (state.editorMode === "json") {
+            var editor = document.getElementById("json-editor");
+            if (editor) {
+                editor.value = state.contentText || "";
+            }
         }
     }
 

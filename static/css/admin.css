@@ -158,6 +158,18 @@ body {
     font-size: 0.84rem;
 }
 
+.editor-mode-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.form-editor-root {
+    display: grid;
+    gap: 10px;
+}
+
 .status-line {
     padding: 10px 12px;
     border-radius: 10px;
@@ -235,6 +247,28 @@ body {
 .field-label {
     font-size: 0.84rem;
     color: var(--admin-muted);
+}
+
+.checkbox-field {
+    border: 1px solid var(--admin-line);
+    border-radius: 8px;
+    background: #fff;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.checkbox-field .field-label {
+    margin: 0;
+}
+
+.checkbox-field input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--admin-strong);
 }
 
 input,
