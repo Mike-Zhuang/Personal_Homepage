@@ -3,31 +3,34 @@
 {{ partial "head.html" . }}
 
 <body>
-    <div class="bg-layer" aria-hidden="true"></div>
-    <div class="grain" aria-hidden="true"></div>
+    <a class="skip-link" href="#main-content">Skip to content</a>
 
     <div class="page-shell">
-        <header class="site-header reveal" data-reveal-index="0">
-            <div class="brand">
-                <p class="brand-label">{{ .Site.Data.site.hero.eyebrow }}</p>
-                <h1>{{ .Site.Data.site.hero.title }}</h1>
-            </div>
+        <header class="site-header" id="top">
+            <div class="site-header-inner">
+                <a class="brand" href="{{ "/" | relURL }}" aria-label="Homepage">
+                    <span class="brand-label">{{ hugo.Data.site.hero.eyebrow }}</span>
+                    <span class="brand-title">{{ hugo.Data.site.hero.title }}</span>
+                </a>
 
-            <nav class="top-nav" aria-label="Main navigation">
-                {{ range .Site.Menus.main }}
-                <a href="{{ .URL | relURL }}">{{ .Name }}</a>
-                {{ end }}
-            </nav>
+                <nav class="top-nav" aria-label="Main navigation">
+                    {{ range .Site.Menus.main }}
+                    <a href="{{ .URL | relURL }}">{{ .Name }}</a>
+                    {{ end }}
+                </nav>
+            </div>
         </header>
 
-        <main>
+        <main id="main-content">
             {{ block "main" . }}{{ end }}
         </main>
 
-        <footer class="site-footer reveal" data-reveal-index="9">
-            <p>{{ .Site.Data.site.footer.lineOne }}</p>
-            <p>{{ .Site.Data.site.footer.lineTwo }}</p>
-            <p>&copy; {{ now.Format "2006" }}</p>
+        <footer class="site-footer theme-dark reveal" data-reveal-index="9">
+            <div class="site-footer-inner">
+                <p>{{ hugo.Data.site.footer.lineOne }}</p>
+                <p>{{ hugo.Data.site.footer.lineTwo }}</p>
+                <p>&copy; {{ now.Format "2006" }}</p>
+            </div>
         </footer>
     </div>
 

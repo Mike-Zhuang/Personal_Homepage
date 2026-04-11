@@ -745,6 +745,69 @@
             + "</div>";
     }
 
+    function getPublishStatusClass(status) {
+        if (status === "running") {
+            return "running";
+        }
+
+        if (status === "success") {
+            return "success";
+        }
+
+        if (status === "failed") {
+            return "failed";
+        }
+
+        return "idle";
+    }
+
+    function renderPublishStatusBlock() {
+        var status = state.publish.status || "idle";
+        var statusClass = getPublishStatusClass(status);
+
+        return ""
+            + "<section class=\"publish-status-block \" + statusClass + "\">"
+            + "<div class=\"publish-status-head\">"
+            + "<span class=\"publish-status-label\">Publish</span>"
+            + "<span class=\"publish-status-chip \" + statusClass + "\">" + escapeHtml(status) + "</span>"
+            + "</div>"
+            + "<div class=\"publish-status-row\">"
+            + "<span>Started: " + escapeHtml(formatTime(state.publish.startedAt)) + "</span>"
+            + "<span>Finished: " + escapeHtml(formatTime(state.publish.finishedAt)) + "</span>"
+            + "</div>"
+            + "</section>";
+    }
+
+    function renderPublishLogsBlock() {
+        var blocks = [];
+
+        if (state.publish.lastError) {
+            blocks.push(
+                ""
+                + "<section class=\"publish-log-block error\">"
+                + "<h3 class=\"publish-log-title\">Error</h3>"
+                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(state.publish.lastError) + "</pre>"
+                + "</section>"
+            );
+        }
+
+        if (state.publish.lastOutput) {
+            blocks.push(
+                ""
+                + "<section class=\"publish-log-block\">"
+                + "<h3 class=\"publish-log-title\">Output</h3>"
+                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(state.publish.lastOutput) + "</pre>"
+                + "</section>"
+            );
+        }
+
+        if (blocks.length === 0) {
+            return "<p class=\"admin-subtitle publish-empty\">No publish logs yet.</p>";
+        }
+
+        return "<div class=\"publish-logs\">" + blocks.join("") + "</div>";
+    }
+
     function renderAdminView(root) {
         var sectionsHtml = state.sections.map(function (item) {
             var activeClass = item.key === state.activeSection ? "active" : "ghost";
@@ -769,13 +832,8 @@
                     + "</div>";
             }).join("");
 
-        var publishError = state.publish.lastError
-            ? "<div class=\"status-line error\">" + escapeHtml(state.publish.lastError) + "</div>"
-            : "";
-
-        var publishOutput = state.publish.lastOutput
-            ? "<div class=\"status-line\"><pre class=\"mono-output\">" + escapeHtml(state.publish.lastOutput) + "</pre></div>"
-            : "";
+        var publishStatusBlock = renderPublishStatusBlock();
+        var publishLogsBlock = renderPublishLogsBlock();
 
         var editorBody = "";
         if (state.editorMode === "json") {
@@ -821,16 +879,13 @@
             + "<div class=\"editor-toolbar\">"
             + "<h2>Editor</h2>"
             + "<span class=\"source-file\">Source: " + escapeHtml(state.sourceFile || "-") + "</span>"
-            + "<span class=\"source-file\">Publish: " + escapeHtml(state.publish.status || "idle")
-            + " | Started: " + escapeHtml(formatTime(state.publish.startedAt))
-            + " | Finished: " + escapeHtml(formatTime(state.publish.finishedAt)) + "</span>"
             + "</div>"
             + "<div class=\"editor-mode-toggle\">"
             + "<button id=\"editor-mode-form\" type=\"button\" class=\"" + (state.editorMode === "form" ? "active" : "ghost") + "\" " + (state.busy ? "disabled" : "") + ">Field Editor</button>"
             + "<button id=\"editor-mode-json\" type=\"button\" class=\"" + (state.editorMode === "json" ? "active" : "ghost") + "\" " + (state.busy ? "disabled" : "") + ">Raw JSON</button>"
             + "</div>"
-            + publishError
-            + publishOutput
+            + publishStatusBlock
+            + publishLogsBlock
             + editorBody
             + "</main>"
             + "</div>"
