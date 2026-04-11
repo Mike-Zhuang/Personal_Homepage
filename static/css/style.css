@@ -390,6 +390,53 @@ main {
     text-decoration: underline;
 }
 
+.project-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0 18px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: -0.08px;
+    font-weight: 500;
+    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.project-link::after {
+    content: "";
+}
+
+.theme-light .project-link {
+    color: var(--sk-link-blue);
+    border-color: rgba(0, 102, 204, 0.45);
+    background: rgba(0, 102, 204, 0.06);
+}
+
+.theme-dark .project-link {
+    color: var(--sk-link-blue-dark);
+    border-color: rgba(41, 151, 255, 0.44);
+    background: rgba(41, 151, 255, 0.12);
+}
+
+.project-link:hover,
+.project-link:focus-visible {
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+.theme-light .project-link:hover,
+.theme-light .project-link:focus-visible {
+    background: rgba(0, 102, 204, 0.14);
+}
+
+.theme-dark .project-link:hover,
+.theme-dark .project-link:focus-visible {
+    background: rgba(41, 151, 255, 0.22);
+}
+
 .cards {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
