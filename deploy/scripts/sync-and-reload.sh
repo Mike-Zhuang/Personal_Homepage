@@ -24,13 +24,23 @@ PROJECT_ROOT="${PROJECT_ROOT:-/opt/personal-homepage}"
 BRANCH="${BRANCH:-main}"
 SITE_ROOT="${SITE_ROOT:-/var/www/personal-homepage/frontend/dist}"
 API_SERVICE="${API_SERVICE:-personal-homepage-api}"
+HUGO_BIN="${HUGO_BIN:-/usr/local/bin/hugo}"
+
+if [[ ! -x "$HUGO_BIN" ]]; then
+  HUGO_BIN="$(command -v hugo || true)"
+fi
+
+if [[ -z "$HUGO_BIN" ]]; then
+  echo "Failed(code=127): hugo executable not found."
+  exit 127
+fi
 
 cd "$PROJECT_ROOT"
 
 git fetch origin "$BRANCH"
 git pull --ff-only origin "$BRANCH"
 
-hugo --gc --minify
+"$HUGO_BIN" --gc --minify
 
 mkdir -p "$SITE_ROOT"
 rsync -a --delete "$PROJECT_ROOT/public/" "$SITE_ROOT/"
