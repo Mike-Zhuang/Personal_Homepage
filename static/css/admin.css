@@ -334,7 +334,7 @@ body {
     background: #f5f5f7;
 }
 
-.node + .node {
+.node+.node {
     margin-top: 10px;
 }
 
@@ -541,6 +541,7 @@ button:disabled {
 }
 
 @media (max-width: 640px) {
+
     .auth-card,
     .panel,
     .admin-header {

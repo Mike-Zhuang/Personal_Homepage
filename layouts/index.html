@@ -38,7 +38,8 @@
             {{ end }}
 
             {{ if and hugo.Data.site.resume.enabled hugo.Data.site.resume.href }}
-            <a class="inline-link" href="{{ hugo.Data.site.resume.href }}" target="_blank" rel="noreferrer">{{ hugo.Data.site.resume.label }}</a>
+            <a class="inline-link" href="{{ hugo.Data.site.resume.href }}" target="_blank" rel="noreferrer">{{
+                hugo.Data.site.resume.label }}</a>
             {{ else }}
             <p class="muted">{{ hugo.Data.site.resume.label }}: Coming soon.</p>
             {{ end }}
@@ -51,15 +52,16 @@
                     {{ $label := lower .label }}
                     {{ $href := lower .href }}
                     <li>
-                        <a class="social-link" href="{{ .href }}" target="_blank" rel="noreferrer" aria-label="{{ .label }}"
-                            title="{{ .label }}">
+                        <a class="social-link" href="{{ .href }}" target="_blank" rel="noreferrer"
+                            aria-label="{{ .label }}" title="{{ .label }}">
                             {{ if or (eq $label "github") (in $href "github.com") }}
                             <i class="fa-brands fa-github" aria-hidden="true"></i>
                             {{ else if or (eq $label "zhihu") (in $href "zhihu.com") }}
                             <i class="fa-brands fa-zhihu" aria-hidden="true"></i>
                             {{ else if or (eq $label "bilibili") (in $href "bilibili.com") (in $href "b23.tv") }}
                             <i class="fa-brands fa-bilibili" aria-hidden="true"></i>
-                            {{ else if or (eq $label "x") (eq $label "twitter") (in $href "twitter.com") (in $href "x.com") }}
+                            {{ else if or (eq $label "x") (eq $label "twitter") (in $href "twitter.com") (in $href
+                            "x.com") }}
                             <i class="fa-brands fa-x-twitter" aria-hidden="true"></i>
                             {{ else if or (eq $label "linkedin") (in $href "linkedin.com") }}
                             <i class="fa-brands fa-linkedin" aria-hidden="true"></i>
@@ -219,7 +221,8 @@
             <p>{{ hugo.Data.site.contact.intro }}</p>
 
             {{ if hugo.Data.site.contact.email }}
-            <p><a class="inline-link" href="mailto:{{ hugo.Data.site.contact.email }}">{{ hugo.Data.site.contact.email }}</a></p>
+            <p><a class="inline-link" href="mailto:{{ hugo.Data.site.contact.email }}">{{ hugo.Data.site.contact.email
+                    }}</a></p>
             {{ end }}
 
             {{ if hugo.Data.site.contact.location }}

@@ -767,15 +767,15 @@
 
         return ""
             + "<section class=\"publish-status-block \" + statusClass + "\">"
-            + "<div class=\"publish-status-head\">"
-            + "<span class=\"publish-status-label\">Publish</span>"
-            + "<span class=\"publish-status-chip \" + statusClass + "\">" + escapeHtml(status) + "</span>"
-            + "</div>"
-            + "<div class=\"publish-status-row\">"
-            + "<span>Started: " + escapeHtml(formatTime(state.publish.startedAt)) + "</span>"
-            + "<span>Finished: " + escapeHtml(formatTime(state.publish.finishedAt)) + "</span>"
-            + "</div>"
-            + "</section>";
+                + "<div class=\"publish-status-head\">"
+                + "<span class=\"publish-status-label\">Publish</span>"
+                + "<span class=\"publish-status-chip \" + statusClass + "\">" + escapeHtml(status) + "</span>"
+                    + "</div>"
+                    + "<div class=\"publish-status-row\">"
+                    + "<span>Started: " + escapeHtml(formatTime(state.publish.startedAt)) + "</span>"
+                    + "<span>Finished: " + escapeHtml(formatTime(state.publish.finishedAt)) + "</span>"
+                    + "</div>"
+                    + "</section>";
     }
 
     function renderPublishLogsBlock() {
