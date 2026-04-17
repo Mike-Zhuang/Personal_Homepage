@@ -44,6 +44,19 @@ The following keys must be arrays when present:
 - `now.items`
 - `writing.items` (optional but must be array if provided)
 
+## Nested Optional Fields Used By Homepage V2
+
+These fields are optional and do not change the top-level section contract:
+
+- `site.hero.badges[]`
+- `site.hero.quickFacts[] = { label, value }`
+- `projects.items[].featured`
+- `projects.items[].year`
+- `projects.items[].highlights[]`
+- `writing.items[].summary`
+
+The admin UI does not need special endpoint support for these fields because it edits arbitrary nested objects and arrays already.
+
 ## Supported Admin Endpoints
 
 - `GET /api/admin/sections`

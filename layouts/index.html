@@ -1,61 +1,80 @@
 {{ define "main" }}
-<section class="hero theme-dark reveal" id="hero" data-reveal-index="1">
-    <div class="hero-content">
-        <div class="hero-copy">
-            <p class="hero-kicker">{{ hugo.Data.site.hero.eyebrow }}</p>
-            <h1 class="hero-title">{{ hugo.Data.site.hero.title }}</h1>
-            <p class="hero-subtitle">{{ hugo.Data.site.hero.subtitle }}</p>
+{{ $site := .Site.Data.site }}
+{{ $projectsData := .Site.Data.projects }}
+{{ $projects := $projectsData.items }}
+{{ $workProjects := where $projects "featured" true }}
+{{ if eq (len $workProjects) 0 }}{{ $workProjects = first 4 $projects }}{{ end }}
+{{ if gt (len $workProjects) 4 }}{{ $workProjects = first 4 $workProjects }}{{ end }}
+
+<section class="hero-dashboard theme-dark reveal" id="overview" data-reveal-index="1">
+    <div class="section-shell hero-dashboard-grid">
+        <div class="hero-main">
+            <p class="section-kicker">{{ $site.hero.eyebrow }}</p>
+            <h1 class="hero-title">{{ $site.hero.title }}</h1>
+            <p class="hero-subtitle">{{ $site.hero.subtitle }}</p>
+
+            <div class="hero-summary">
+                {{ range $site.about.paragraphs }}
+                <p>{{ . }}</p>
+                {{ end }}
+            </div>
 
             <div class="hero-actions">
-                {{ with hugo.Data.site.hero.primaryCta }}
+                {{ with $site.hero.primaryCta }}
                 <a class="button primary" href="{{ .href }}">{{ .label }}</a>
                 {{ end }}
-                {{ with hugo.Data.site.hero.secondaryCta }}
+                {{ with $site.hero.secondaryCta }}
                 <a class="button ghost" href="{{ .href }}">{{ .label }}</a>
                 {{ end }}
             </div>
+
+            {{ with $site.hero.badges }}
+            <ul class="badge-list" aria-label="Focus areas">
+                {{ range . }}
+                <li>{{ . }}</li>
+                {{ end }}
+            </ul>
+            {{ end }}
         </div>
 
-        {{ with hugo.Data.site.profile.image }}
-        <figure class="profile-photo-wrap">
-            <img class="profile-photo" src="{{ . | relURL }}" alt="{{ hugo.Data.site.profile.alt }}">
-            {{ with hugo.Data.site.profile.caption }}
-            <figcaption>{{ . }}</figcaption>
-            {{ end }}
-        </figure>
-        {{ end }}
-    </div>
-</section>
-
-<section class="panel theme-light reveal" id="about" data-reveal-index="2">
-    <div class="panel-inner">
-        <div class="panel-head">
-            <h2>{{ hugo.Data.site.about.heading }}</h2>
-        </div>
-        <div class="panel-body">
-            {{ range hugo.Data.site.about.paragraphs }}
-            <p>{{ . }}</p>
+        <aside class="hero-side">
+            {{ with $site.profile.image }}
+            <figure class="portrait-card">
+                <img class="profile-photo" src="{{ . | relURL }}" alt="{{ $site.profile.alt }}">
+                {{ with $site.profile.caption }}
+                <figcaption>{{ . }}</figcaption>
+                {{ end }}
+            </figure>
             {{ end }}
 
-            {{ if and hugo.Data.site.resume.enabled hugo.Data.site.resume.href }}
-            {{ $resumeLabel := hugo.Data.site.resume.label }}
-            <a class="inline-link" href="{{ hugo.Data.site.resume.href }}" target="_blank" rel="noreferrer">{{ $resumeLabel }}</a>
-            {{ else }}
-            <p class="muted">{{ hugo.Data.site.resume.label }}: Coming soon.</p>
+            {{ with $site.hero.quickFacts }}
+            <section class="info-card quick-facts-card">
+                <div class="info-card-head">
+                    <p class="eyebrow">Quick Facts</p>
+                    <p class="micro-copy">A fast overview of what I am building and where I am doing it.</p>
+                </div>
+                <dl class="quick-facts-grid">
+                    {{ range . }}
+                    <div class="quick-fact-item">
+                        <dt>{{ .label }}</dt>
+                        <dd>{{ .value }}</dd>
+                    </div>
+                    {{ end }}
+                </dl>
+            </section>
             {{ end }}
 
-            {{ if hugo.Data.site.social.links }}
-            <div class="social-links">
-                <p class="muted">{{ hugo.Data.site.social.heading }}</p>
-                <ul>
-                    {{ range hugo.Data.site.social.links }}
+            {{ with $site.social.links }}
+            <section class="info-card social-card">
+                <p class="eyebrow">{{ $site.social.heading }}</p>
+                <ul class="social-links">
+                    {{ range . }}
                     {{ $label := lower .label }}
                     {{ $href := lower .href }}
                     {{ $isXLabel := or (eq $label "x") (eq $label "twitter") }}
                     {{ $isXHref := or (in $href "twitter.com") (in $href "x.com") }}
                     <li>
-                        <a class="social-link" href="{{ .href }}" target="_blank" rel="noreferrer"
-                            aria-label="{{ .label }}" title="{{ .label }}">
+                        <a class="social-link" href="{{ .href }}" target="_blank" rel="noreferrer" aria-label="{{ .label }}" title="{{ .label }}">
                             {{ if or (eq $label "github") (in $href "github.com") }}
                             <i class="fa-brands fa-github" aria-hidden="true"></i>
                             {{ else if or (eq $label "zhihu") (in $href "zhihu.com") }}
@@ -74,160 +93,161 @@
                     </li>
                     {{ end }}
                 </ul>
+            </section>
+            {{ end }}
+        </aside>
+    </div>
+</section>
+
+<section class="content-section theme-light reveal" id="work" data-reveal-index="2">
+    <div class="section-shell">
+        <div class="section-heading-row">
+            <div>
+                <p class="section-kicker">Work</p>
+                <h2>{{ $projectsData.section.heading }}</h2>
             </div>
+            <p class="section-intro">A compact view of the work that best represents my direction across digital twins, simulation systems, and applied AI.</p>
+        </div>
+
+        <div class="project-grid">
+            {{ range $workProjects }}
+            <article class="project-card">
+                <div class="project-topline">
+                    <span class="status-pill">{{ .status }}</span>
+                    {{ with .year }}
+                    <span class="meta-pill">{{ . }}</span>
+                    {{ end }}
+                </div>
+
+                <h3 class="project-title">{{ .title }}</h3>
+                <p class="project-summary">{{ .summary }}</p>
+
+                {{ with .highlights }}
+                <ul class="highlights-list">
+                    {{ range . }}
+                    <li>{{ . }}</li>
+                    {{ end }}
+                </ul>
+                {{ else }}
+                <p class="stack-line">{{ .stack }}</p>
+                {{ end }}
+
+                <div class="project-footer">
+                    <p class="stack-line">{{ .stack }}</p>
+                    {{ if .link }}
+                    <a class="inline-link" href="{{ .link }}" target="_blank" rel="noreferrer">Open project</a>
+                    {{ else }}
+                    <span class="muted">Link coming soon.</span>
+                    {{ end }}
+                </div>
+            </article>
             {{ end }}
         </div>
     </div>
 </section>
 
-<section class="panel theme-light reveal" id="education" data-reveal-index="3">
-    <div class="panel-inner">
-        <div class="panel-head">
-            <h2>{{ hugo.Data.education.section.heading }}</h2>
-        </div>
-        <div class="panel-body">
-            <ul class="education-list">
-                {{ range hugo.Data.education.items }}
-                <li>
-                    <strong>{{ .school }}</strong>
-                    {{ if .location }}
-                    <p class="meta-line">{{ .period }} | {{ .location }}</p>
-                    {{ else }}
-                    <p class="meta-line">{{ .period }}</p>
-                    {{ end }}
-                    <p>{{ .program }}</p>
-                </li>
-                {{ end }}
-            </ul>
-        </div>
-    </div>
-</section>
-
-<section class="panel theme-dark reveal" id="projects" data-reveal-index="4">
-    <div class="panel-inner">
-        <div class="panel-head">
-            <h2>{{ hugo.Data.projects.section.heading }}</h2>
-        </div>
-        <div class="panel-body">
-            <div class="cards">
-                {{ range hugo.Data.projects.items }}
-                <article class="card">
-                    <div class="card-meta">
-                        <span>{{ .status }}</span>
-                        <span>{{ .stack }}</span>
-                    </div>
-                    <h3 class="card-title">{{ .title }}</h3>
-                    <p>{{ .summary }}</p>
-                    {{ if .link }}
-                    <a class="inline-link" href="{{ .link }}" target="_blank" rel="noreferrer">View project</a>
-                    {{ else }}
-                    <p class="muted">Details coming soon.</p>
-                    {{ end }}
-                </article>
-                {{ end }}
+<section class="content-section theme-dark reveal" id="snapshot" data-reveal-index="3">
+    <div class="section-shell">
+        <div class="section-heading-row">
+            <div>
+                <p class="section-kicker">Snapshot</p>
+                <h2>Education, progress, and current focus in one scan.</h2>
             </div>
+            <p class="section-intro">Instead of spreading the story across many long sections, the essentials live here as a concise snapshot.</p>
         </div>
-    </div>
-</section>
 
-<section class="panel theme-dark reveal" id="achievements" data-reveal-index="5">
-    <div class="panel-inner">
-        <div class="panel-head">
-            <h2>{{ hugo.Data.achievements.section.heading }}</h2>
-        </div>
-        <div class="panel-body">
-            <ul class="achievements-list">
-                {{ range hugo.Data.achievements.items }}
-                <li>
-                    <div>
+        <div class="snapshot-grid">
+            <article class="snapshot-card">
+                <div class="snapshot-card-head">
+                    <p class="eyebrow">{{ .Site.Data.education.section.heading }}</p>
+                </div>
+                <ul class="compact-list">
+                    {{ range .Site.Data.education.items }}
+                    <li>
+                        <strong>{{ .school }}</strong>
+                        <p class="meta-line">{{ .period }}{{ with .location }} | {{ . }}{{ end }}</p>
+                        <p>{{ .program }}</p>
+                    </li>
+                    {{ end }}
+                </ul>
+            </article>
+
+            <article class="snapshot-card">
+                <div class="snapshot-card-head">
+                    <p class="eyebrow">{{ .Site.Data.achievements.section.heading }}</p>
+                </div>
+                <ul class="compact-list">
+                    {{ range .Site.Data.achievements.items }}
+                    <li>
                         <strong>{{ .title }}</strong>
                         <p class="meta-line">{{ .issuer }} | {{ .year }}</p>
                         <p>{{ .note }}</p>
-                    </div>
-                    {{ if .link }}
-                    <a class="inline-link" href="{{ .link }}" target="_blank" rel="noreferrer">View</a>
+                    </li>
                     {{ end }}
-                </li>
+                </ul>
+            </article>
+
+            <article class="snapshot-card">
+                <div class="snapshot-card-head">
+                    <p class="eyebrow">{{ .Site.Data.now.section.heading }}</p>
+                </div>
+                <ul class="compact-list">
+                    {{ range .Site.Data.now.items }}
+                    <li>{{ . }}</li>
+                    {{ end }}
+                </ul>
+            </article>
+
+            {{ if or .Site.Data.writing.intro .Site.Data.writing.items }}
+            <article class="snapshot-card">
+                <div class="snapshot-card-head">
+                    <p class="eyebrow">{{ .Site.Data.writing.section.heading }}</p>
+                </div>
+                {{ with .Site.Data.writing.intro }}
+                <p class="snapshot-copy">{{ . }}</p>
                 {{ end }}
-            </ul>
-        </div>
-    </div>
-</section>
-
-<section class="panel theme-light reveal" id="now" data-reveal-index="6">
-    <div class="panel-inner">
-        <div class="panel-head">
-            <h2>{{ hugo.Data.now.section.heading }}</h2>
-        </div>
-        <div class="panel-body">
-            <ul class="now-list">
-                {{ range hugo.Data.now.items }}
-                <li>{{ . }}</li>
-                {{ end }}
-            </ul>
-        </div>
-    </div>
-</section>
-
-<section class="panel theme-light reveal" id="writing" data-reveal-index="7">
-    <div class="panel-inner">
-        <div class="panel-head">
-            <h2>{{ hugo.Data.writing.section.heading }}</h2>
-        </div>
-        <div class="panel-body">
-            {{ with hugo.Data.writing.intro }}
-            <p>{{ . }}</p>
-            {{ end }}
-
-            {{ if hugo.Data.writing.items }}
-            <ul class="writing-list">
-                {{ range hugo.Data.writing.items }}
-                <li>
-                    <div>
+                {{ with .Site.Data.writing.items }}
+                <ul class="compact-list">
+                    {{ range first 3 . }}
+                    <li>
                         <strong>{{ .title }}</strong>
                         {{ if or .outlet .date }}
-                        <p class="meta-line">
-                            {{ if and .outlet .date }}
-                            {{ .outlet }} | {{ .date }}
-                            {{ else if .outlet }}
-                            {{ .outlet }}
-                            {{ else }}
-                            {{ .date }}
-                            {{ end }}
-                        </p>
+                        <p class="meta-line">{{ with .outlet }}{{ . }}{{ end }}{{ if and .outlet .date }} | {{ end }}{{ with .date }}{{ . }}{{ end }}</p>
                         {{ end }}
-                    </div>
-
-                    {{ if .link }}
-                    <a class="inline-link" href="{{ .link }}" target="_blank" rel="noreferrer">Read</a>
-                    {{ else }}
-                    <p class="muted">Link coming soon.</p>
+                        {{ with .summary }}
+                        <p>{{ . }}</p>
+                        {{ end }}
+                    </li>
                     {{ end }}
-                </li>
+                </ul>
                 {{ end }}
-            </ul>
-            {{ else }}
-            <p class="muted">Writing updates coming soon.</p>
+            </article>
             {{ end }}
         </div>
     </div>
 </section>
 
-<section class="panel theme-dark reveal" id="contact" data-reveal-index="8">
-    <div class="panel-inner">
-        <div class="panel-head">
-            <h2>{{ hugo.Data.site.contact.heading }}</h2>
+<section class="content-section contact-section theme-light reveal" id="contact" data-reveal-index="4">
+    <div class="section-shell contact-grid">
+        <div class="contact-copy">
+            <p class="section-kicker">{{ $site.contact.heading }}</p>
+            <h2>Reach out without hunting for the important details.</h2>
+            <p>{{ $site.contact.intro }}</p>
+            {{ with $site.contact.location }}
+            <p class="muted">{{ . }}</p>
+            {{ end }}
         </div>
-        <div class="panel-body">
-            <p>{{ hugo.Data.site.contact.intro }}</p>
 
-            {{ if hugo.Data.site.contact.email }}
-            {{ $contactEmail := hugo.Data.site.contact.email }}
-            <p><a class="inline-link" href="mailto:{{ $contactEmail }}">{{ $contactEmail }}</a></p>
+        <div class="contact-actions">
+            {{ with $site.contact.email }}
+            <a class="button primary wide" href="mailto:{{ . }}">Email Me</a>
+            <p class="contact-meta">{{ . }}</p>
             {{ end }}
 
-            {{ if hugo.Data.site.contact.location }}
-            <p class="muted">{{ hugo.Data.site.contact.location }}</p>
+            {{ if and $site.resume.enabled $site.resume.href }}
+            <a class="button ghost wide light" href="{{ $site.resume.href }}" target="_blank" rel="noreferrer">{{ $site.resume.label }}</a>
+            {{ else }}
+            <p class="contact-note">{{ $site.resume.label }} is intentionally private for now.</p>
             {{ end }}
         </div>
     </div>

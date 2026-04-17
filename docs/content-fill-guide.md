@@ -8,7 +8,23 @@ Use this file when you are ready to replace placeholders.
 - Keys:
   - `hero.title`
   - `hero.subtitle`
+  - `hero.badges[]`
+  - `hero.quickFacts[]`
   - `about.paragraphs`
+
+### Hero Quick Facts
+
+- File: `data/site.toml`
+- Pattern:
+  - `hero.quickFacts = [{ label = "Base", value = "Shanghai" }]`
+  - 建议 4 个以内，适合首屏快速扫读
+
+### Hero Badges
+
+- File: `data/site.toml`
+- Pattern:
+  - `hero.badges = ["Digital Twin Systems", "Applied AI"]`
+  - 建议 2-4 个短语，避免太长
 
 ## Resume Link
 
@@ -23,6 +39,10 @@ Use this file when you are ready to replace placeholders.
 - Pattern:
   - Add or remove `[[items]]` blocks
   - Fill `title`, `status`, `stack`, `summary`, `link`
+  - Optional fields for the homepage redesign:
+    - `featured = true`
+    - `year = "2025"`
+    - `highlights = ["Short outcome", "Another short outcome"]`
 
 ## Writing
 
@@ -30,6 +50,7 @@ Use this file when you are ready to replace placeholders.
 - Pattern:
   - Add or remove `[[items]]` blocks
   - Fill `title`, `outlet`, `date`, `link`
+  - Optional: `summary`
 
 ## Current Focus
 
@@ -43,6 +64,11 @@ Use this file when you are ready to replace placeholders.
 - Keys:
   - `contact.email`
   - `contact.location`
+
+## Snapshot Behavior
+
+- `education`, `achievements`, `now` 会被首页聚合成一个 `Snapshot` 模块。
+- `writing.items` 为空时不会再占据完整大区块。
 
 ## API Base URL
 

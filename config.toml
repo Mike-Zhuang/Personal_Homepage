@@ -8,40 +8,25 @@ disableKinds = ["taxonomy", "term"]
   unsafe = true
 
 [params]
-  siteDescription = "A minimal editorial-style personal homepage."
+  siteDescription = "A high-density personal homepage focused on digital twins, simulation systems, and applied AI."
   apiBaseUrl = ""
 
 [[menu.main]]
-  name = "About"
-  url = "#about"
+  name = "Overview"
+  url = "#overview"
   weight = 1
 
 [[menu.main]]
-  name = "Education"
-  url = "#education"
+  name = "Work"
+  url = "#work"
   weight = 2
 
 [[menu.main]]
-  name = "Projects"
-  url = "#projects"
+  name = "Snapshot"
+  url = "#snapshot"
   weight = 3
-
-[[menu.main]]
-  name = "Achievements"
-  url = "#achievements"
-  weight = 4
-
-[[menu.main]]
-  name = "Now"
-  url = "#now"
-  weight = 5
-
-[[menu.main]]
-  name = "Writing"
-  url = "#writing"
-  weight = 6
 
 [[menu.main]]
   name = "Contact"
   url = "#contact"
-  weight = 7
+  weight = 4

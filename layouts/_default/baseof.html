@@ -9,36 +9,39 @@
         <header class="site-header" id="top">
             <div class="site-header-inner">
                 <a class="brand" href="{{ "/" | relURL }}" aria-label="Homepage">
-                    <span class="brand-label">{{ hugo.Data.site.hero.eyebrow }}</span>
-                    <span class="brand-title">{{ hugo.Data.site.hero.title }}</span>
+                    <span class="brand-label">{{ .Site.Data.site.hero.eyebrow }}</span>
+                    <span class="brand-title">{{ .Site.Data.site.hero.title }}</span>
                 </a>
 
-                <nav class="top-nav" aria-label="Main navigation">
+                <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
+                    <span class="nav-toggle-bar"></span>
+                    <span class="nav-toggle-bar"></span>
+                    <span class="nav-toggle-label">Menu</span>
+                </button>
+
+                <nav class="top-nav" id="site-nav" aria-label="Main navigation" data-nav>
                     {{ range .Site.Menus.main }}
-                    <a href="{{ .URL | relURL }}">{{ .Name }}</a>
+                    <a href="{{ .URL | relURL }}" data-nav-link>{{ .Name }}</a>
                     {{ end }}
                 </nav>
             </div>
         </header>
 
+        <div class="nav-backdrop" data-nav-backdrop></div>
+
         <main id="main-content">
             {{ block "main" . }}{{ end }}
         </main>
 
-        <footer class="site-footer theme-dark reveal" data-reveal-index="9">
+        <footer class="site-footer theme-dark reveal" data-reveal-index="5">
             <div class="site-footer-inner">
-                <p>{{ hugo.Data.site.footer.lineOne }}</p>
-                <p>{{ hugo.Data.site.footer.lineTwo }}</p>
+                <p>{{ .Site.Data.site.footer.lineOne }}</p>
+                <p>{{ .Site.Data.site.footer.lineTwo }}</p>
                 <p>&copy; {{ now.Format "2006" }}</p>
             </div>
         </footer>
     </div>
 
-    <script>
-        window.__SITE_CONFIG__ = {
-            apiBaseUrl: "{{ .Site.Params.apiBaseUrl }}"
-        };
-    </script>
     <script src="{{ "js/main.js" | relURL }}" defer></script>
 </body>
 

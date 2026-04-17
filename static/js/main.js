@@ -1,4 +1,6 @@
 (function () {
+    "use strict";
+
     var revealElements = document.querySelectorAll(".reveal");
 
     if ("IntersectionObserver" in window) {
@@ -10,12 +12,12 @@
                     }
 
                     var index = Number(entry.target.getAttribute("data-reveal-index") || "0");
-                    entry.target.style.transitionDelay = String(index * 45) + "ms";
+                    entry.target.style.transitionDelay = String(index * 40) + "ms";
                     entry.target.classList.add("in-view");
                     revealObserver.unobserve(entry.target);
                 });
             },
-            { threshold: 0.22 }
+            { threshold: 0.18 }
         );
 
         revealElements.forEach(function (element) {
@@ -27,67 +29,52 @@
         });
     }
 
-    var form = document.querySelector("[data-contact-form]");
-    var statusNode = document.querySelector("[data-form-status]");
+    var body = document.body;
+    var navToggle = document.querySelector("[data-nav-toggle]");
+    var nav = document.querySelector("[data-nav]");
+    var navBackdrop = document.querySelector("[data-nav-backdrop]");
+    var navLinks = document.querySelectorAll("[data-nav-link]");
 
-    if (!form || !statusNode) {
+    function setNavOpen(nextOpen) {
+        var isOpen = Boolean(nextOpen);
+
+        body.setAttribute("data-nav-open", isOpen ? "true" : "false");
+
+        if (navToggle) {
+            navToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        }
+
+        if (nav) {
+            nav.setAttribute("data-open", isOpen ? "true" : "false");
+        }
+    }
+
+    if (!navToggle || !nav) {
         return;
     }
 
-    var submitButton = form.querySelector('button[type="submit"]');
-    var runtimeConfig = window.__SITE_CONFIG__ || {};
-    var baseUrl = (runtimeConfig.apiBaseUrl || "").replace(/\/$/, "");
-    var endpoint = baseUrl + "/api/contact";
+    setNavOpen(false);
 
-    form.addEventListener("submit", async function (event) {
-        event.preventDefault();
+    navToggle.addEventListener("click", function () {
+        var expanded = navToggle.getAttribute("aria-expanded") === "true";
+        setNavOpen(!expanded);
+    });
 
-        var formData = new FormData(form);
-        var payload = {
-            name: String(formData.get("name") || "").trim(),
-            email: String(formData.get("email") || "").trim(),
-            message: String(formData.get("message") || "").trim()
-        };
+    if (navBackdrop) {
+        navBackdrop.addEventListener("click", function () {
+            setNavOpen(false);
+        });
+    }
 
-        if (!payload.name || !payload.email || !payload.message) {
-            statusNode.textContent = "Please complete all required fields.";
-            return;
-        }
+    navLinks.forEach(function (link) {
+        link.addEventListener("click", function () {
+            setNavOpen(false);
+        });
+    });
 
-        if (submitButton) {
-            submitButton.disabled = true;
-        }
-
-        statusNode.textContent = "Sending...";
-
-        try {
-            var response = await fetch(endpoint, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            });
-
-            var result = {};
-            try {
-                result = await response.json();
-            } catch (jsonError) {
-                result = {};
-            }
-
-            if (!response.ok) {
-                throw new Error(result.detail || "Submission failed. Please try again.");
-            }
-
-            statusNode.textContent = result.message || "Message received.";
-            form.reset();
-        } catch (error) {
-            statusNode.textContent = error.message || "Unable to send message right now.";
-        } finally {
-            if (submitButton) {
-                submitButton.disabled = false;
-            }
+    window.addEventListener("resize", function () {
+        if (window.innerWidth > 834) {
+            setNavOpen(false);
         }
     });
 })();

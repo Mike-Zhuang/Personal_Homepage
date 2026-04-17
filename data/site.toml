@@ -2,10 +2,17 @@
 eyebrow = "Personal Homepage"
 title = "Zhuang Chengbo (Mike)"
 subtitle = "Future Technology student at Tongji University building digital twins, simulation systems, and practical AI tools."
+badges = ["Digital Twin Systems", "Simulation Workflows", "Applied AI"]
+quickFacts = [
+    { label = "Base", value = "Shanghai, China" },
+    { label = "School", value = "Tongji University" },
+    { label = "Track", value = "Future Technology" },
+    { label = "Style", value = "Builder + Research" },
+]
 
 [hero.primaryCta]
 label = "View Projects"
-href = "#projects"
+href = "#work"
 
 [hero.secondaryCta]
 label = "Get in Touch"
@@ -14,6 +21,7 @@ href = "#contact"
 [profile]
 image = "/images/personal-homepage.jpg"
 alt = "Portrait of Zhuang Chengbo"
+caption = "Focused on turning technical systems into work that is useful outside demos."
 
 [about]
 heading = "About"

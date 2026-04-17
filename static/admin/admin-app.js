@@ -856,7 +856,7 @@
             + "<div class=\"admin-shell\">"
             + "<header class=\"admin-header\">"
             + "<h1 class=\"admin-title\">Personal Homepage Admin</h1>"
-            + "<p class=\"admin-subtitle\">Stable mode: plain JavaScript, no external CDN dependencies.</p>"
+            + "<p class=\"admin-subtitle\">Stable mode: plain JavaScript, no external CDN dependencies. Nested fields for homepage V2 are supported directly in the editor.</p>"
             + "<div class=\"top-actions\">"
             + "<button id=\"refresh-button\" class=\"secondary\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Reload Section</button>"
             + "<button id=\"save-button\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Save</button>"
