@@ -25,6 +25,7 @@ BRANCH="${BRANCH:-main}"
 SITE_ROOT="${SITE_ROOT:-/var/www/personal-homepage/frontend/dist}"
 API_SERVICE="${API_SERVICE:-personal-homepage-api}"
 HUGO_BIN="${HUGO_BIN:-/usr/local/bin/hugo}"
+PUBLISH_SCRIPT="${PUBLISH_SCRIPT:-$PROJECT_ROOT/deploy/scripts/publish-content.sh}"
 
 if [[ ! -x "$HUGO_BIN" ]]; then
   HUGO_BIN="$(command -v hugo || true)"
@@ -40,10 +41,12 @@ cd "$PROJECT_ROOT"
 git fetch origin "$BRANCH"
 git pull --ff-only origin "$BRANCH"
 
-"$HUGO_BIN" --gc --minify
+if [[ ! -x "$PUBLISH_SCRIPT" ]]; then
+  echo "Failed(code=127): publish script not found or not executable: $PUBLISH_SCRIPT"
+  exit 127
+fi
 
-mkdir -p "$SITE_ROOT"
-rsync -a --delete "$PROJECT_ROOT/public/" "$SITE_ROOT/"
+SITE_ROOT="$SITE_ROOT" RELOAD_NGINX=false "$PUBLISH_SCRIPT"
 
 systemctl restart "$API_SERVICE"
 systemctl reload nginx
