@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 {{ partial "head.html" . }}
+{{ $mainScript := resources.Get "js/main.js" | fingerprint }}
 
 <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
@@ -42,7 +43,7 @@
         </footer>
     </div>
 
-    <script src="{{ "js/main.js" | relURL }}" defer></script>
+    <script src="{{ $mainScript.RelPermalink }}" integrity="{{ $mainScript.Data.Integrity }}" defer></script>
 </body>
 
 </html>
