@@ -16,6 +16,9 @@ LOCK_DIR=""
 BUILD_ROOT=""
 
 mkdir -p "$LOCK_ROOT" "$TMP_ROOT"
+chmod 0777 "$LOCK_ROOT" "$TMP_ROOT"
+touch "$LOCK_FILE" "$MKDIR_ERR_FILE"
+chmod 0666 "$LOCK_FILE" "$MKDIR_ERR_FILE"
 
 if command -v flock >/dev/null 2>&1; then
   exec 200>"$LOCK_FILE"

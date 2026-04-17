@@ -9,6 +9,9 @@ LOCK_ROOT="$RUNTIME_ROOT/locks"
 LOCK_FILE="$LOCK_ROOT/personal-homepage-sync.lock"
 
 mkdir -p "$LOCK_ROOT"
+chmod 0777 "$LOCK_ROOT"
+touch "$LOCK_FILE"
+chmod 0666 "$LOCK_FILE"
 
 exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
