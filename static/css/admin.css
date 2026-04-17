@@ -86,6 +86,18 @@ body {
     color: rgba(255, 255, 255, 0.75);
 }
 
+.admin-header .status-line {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.94);
+}
+
+.admin-header .status-line.error {
+    border-color: rgba(254, 228, 226, 0.22);
+    background: rgba(180, 35, 24, 0.26);
+    color: #fff3f2;
+}
+
 .top-actions {
     display: flex;
     flex-wrap: wrap;

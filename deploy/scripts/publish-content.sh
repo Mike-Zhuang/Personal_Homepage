@@ -2,10 +2,20 @@
 
 set -euo pipefail
 
-LOCK_FILE="/tmp/personal-homepage-publish.lock"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+ENV_FILE="${ENV_FILE:-$PROJECT_ROOT/deploy/env/api.env}"
+REPO_DATA_ROOT="$PROJECT_ROOT/data"
+RUNTIME_ROOT="$PROJECT_ROOT/runtime"
+LOCK_ROOT="$RUNTIME_ROOT/locks"
+TMP_ROOT="$RUNTIME_ROOT/tmp"
+LOCK_FILE="$LOCK_ROOT/personal-homepage-publish.lock"
+MKDIR_ERR_FILE="$TMP_ROOT/personal-homepage-publish-mkdir.err"
 LOCK_MODE="none"
 LOCK_DIR=""
 BUILD_ROOT=""
+
+mkdir -p "$LOCK_ROOT" "$TMP_ROOT"
 
 if command -v flock >/dev/null 2>&1; then
   exec 200>"$LOCK_FILE"
@@ -22,11 +32,6 @@ else
   fi
   LOCK_MODE="mkdir"
 fi
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
-ENV_FILE="${ENV_FILE:-$PROJECT_ROOT/deploy/env/api.env}"
-REPO_DATA_ROOT="$PROJECT_ROOT/data"
 
 finish() {
   local exit_code=$?
@@ -68,15 +73,15 @@ fi
 
 echo "Publish target candidate: $SITE_ROOT (source=$SITE_ROOT_SOURCE)"
 
-if ! mkdir -p "$SITE_ROOT" 2>/tmp/personal-homepage-publish-mkdir.err; then
-  mkdir_error="$(cat /tmp/personal-homepage-publish-mkdir.err || true)"
+if ! mkdir -p "$SITE_ROOT" 2>"$MKDIR_ERR_FILE"; then
+  mkdir_error="$(cat "$MKDIR_ERR_FILE" || true)"
 
   if [[ "$SITE_ROOT_SOURCE" == "default" ]]; then
     echo "Default SITE_ROOT is not writable, fallback to local preview directory: $FALLBACK_SITE_ROOT"
     SITE_ROOT="$FALLBACK_SITE_ROOT"
 
-    if ! mkdir -p "$SITE_ROOT" 2>/tmp/personal-homepage-publish-mkdir.err; then
-      fallback_error="$(cat /tmp/personal-homepage-publish-mkdir.err || true)"
+    if ! mkdir -p "$SITE_ROOT" 2>"$MKDIR_ERR_FILE"; then
+      fallback_error="$(cat "$MKDIR_ERR_FILE" || true)"
       echo "Failed(code=1): unable to create fallback SITE_ROOT '$SITE_ROOT'. $fallback_error"
       exit 1
     fi

@@ -2,7 +2,14 @@
 
 set -euo pipefail
 
-LOCK_FILE="/tmp/personal-homepage-sync.lock"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT:-/opt/personal-homepage}"
+RUNTIME_ROOT="$PROJECT_ROOT/runtime"
+LOCK_ROOT="$RUNTIME_ROOT/locks"
+LOCK_FILE="$LOCK_ROOT/personal-homepage-sync.lock"
+
+mkdir -p "$LOCK_ROOT"
+
 exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
   echo "Failed(code=11): another sync task is still running."
@@ -20,7 +27,6 @@ finish() {
 }
 trap finish EXIT
 
-PROJECT_ROOT="${PROJECT_ROOT:-/opt/personal-homepage}"
 BRANCH="${BRANCH:-main}"
 SITE_ROOT="${SITE_ROOT:-/var/www/personal-homepage/frontend/dist}"
 API_SERVICE="${API_SERVICE:-personal-homepage-api}"
