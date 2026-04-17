@@ -139,7 +139,7 @@ echo "Resolved Hugo cache directory: $HUGO_CACHEDIR"
   hugo --gc --minify
 )
 
-if ! rsync -a --delete "$BUILD_PROJECT_ROOT/public/" "$SITE_ROOT/"; then
+if ! rsync -rlt --delete --no-perms --no-owner --no-group "$BUILD_PROJECT_ROOT/public/" "$SITE_ROOT/"; then
   echo "Failed(code=1): rsync failed while publishing to '$SITE_ROOT'."
   exit 1
 fi
