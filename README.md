@@ -146,16 +146,19 @@ sudo nginx -t && sudo systemctl reload nginx
 ## 私信留言与邮件通知
 
 - 首页 Contact 区提供单向私信表单。
-- 留言不会公开展示，仅写入运行时消息文件并在 Admin Message Center 查看。
+- 留言不会公开展示，运行时会优先写入 SQLite 留言库，并在 Admin Message Center 查看。
 - Admin 消息能力：列表、详情、标记已处理（不提供删除）。
 - Admin 页面提供 SMTP 设置面板，可在线调整发信参数并立即生效。
 
 ### 关键环境变量
 
-- `CONTACT_MESSAGES_PATH`: 留言 JSONL 文件路径（建议放 `runtime/`）
+- `CONTACT_DB_PATH`: 留言 SQLite 数据库路径（生产环境推荐）
+- `CONTACT_MESSAGES_PATH`: 旧版 JSONL 留言文件路径，仅用于兼容迁移
 - `CONTACT_SETTINGS_PATH`: 联系与 SMTP 在线配置文件路径
 - `CONTACT_RATE_LIMIT_WINDOW_SECONDS`: 限流窗口秒数
 - `CONTACT_RATE_LIMIT_MAX_REQUESTS`: 窗口内最大提交次数
+- `TRUSTED_PROXY_IPS`: 可信反向代理 IP / 网段白名单
+- `CONTACT_ENABLE_GEO_LOOKUP`: 是否启用基于真实 IP 的 GeoIP 外部查询
 - `CONTACT_IP_HASH_SALT`: IP 哈希盐值
 - `SMTP_HOST` / `SMTP_PORT` / `SMTP_USE_SSL` / `SMTP_USE_STARTTLS`
 - `SMTP_USER` / `SMTP_PASS` / `MAIL_FROM` / `MAIL_TO`

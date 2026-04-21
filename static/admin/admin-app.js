@@ -1128,9 +1128,11 @@
 
         if (state.activeMessageDetail) {
             var requestContext = state.activeMessageDetail.requestContext || {};
+            var enrichment = requestContext.enrichment || {};
             var securitySignals = Array.isArray(state.activeMessageDetail.securitySignals)
                 ? state.activeMessageDetail.securitySignals.join(", ")
                 : "";
+            var summaryJson = formatJsonBlock(enrichment.summary || {});
             detailHtml = ""
                 + "<div class=\"message-detail-grid\">"
                 + "<p><strong>ID:</strong> " + escapeHtml(state.activeMessageDetail.id || "-") + "</p>"
@@ -1142,6 +1144,7 @@
                 + "<p><strong>Status:</strong> " + escapeHtml(state.activeMessageDetail.status || "new") + "</p>"
                 + "<p><strong>Processed:</strong> " + escapeHtml(formatTime(state.activeMessageDetail.processedAt)) + "</p>"
                 + "<p><strong>IP Hash:</strong> " + escapeHtml(state.activeMessageDetail.ipHash || "-") + "</p>"
+                + "<p><strong>Client IP:</strong> " + escapeHtml(requestContext.clientIp || "-") + "</p>"
                 + "<p><strong>User Agent:</strong> " + escapeHtml(state.activeMessageDetail.userAgent || "-") + "</p>"
                 + "<p><strong>Path:</strong> " + escapeHtml(requestContext.path || "-") + "</p>"
                 + "<p><strong>Origin:</strong> " + escapeHtml(requestContext.origin || "-") + "</p>"
@@ -1150,10 +1153,16 @@
                 + "</div>"
                 + "<h4 class=\"panel-subhead message-content-title\">Message</h4>"
                 + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(state.activeMessageDetail.content || "") + "</pre>"
+                + "<h4 class=\"panel-subhead message-content-title\">中文画像摘要</h4>"
+                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(summaryJson) + "</pre>"
+                + "<h4 class=\"panel-subhead message-content-title\">画像明细</h4>"
+                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(enrichment)) + "</pre>"
                 + "<h4 class=\"panel-subhead message-content-title\">Client Meta</h4>"
                 + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(requestContext.clientMeta || {})) + "</pre>"
                 + "<h4 class=\"panel-subhead message-content-title\">Headers</h4>"
-                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(requestContext.headers || {})) + "</pre>";
+                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(requestContext.headers || {})) + "</pre>"
+                + "<h4 class=\"panel-subhead message-content-title\">安全清洗快照</h4>"
+                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(state.activeMessageDetail.sanitizedFields || {})) + "</pre>";
 
             if (state.activeMessageDetail.status !== "processed") {
                 processButtonHtml = ""

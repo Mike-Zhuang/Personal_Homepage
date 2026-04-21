@@ -178,6 +178,7 @@
 
         function buildClientMeta() {
             var timezone = "";
+            var connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
             try {
                 timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
             } catch (_error) {
@@ -201,6 +202,11 @@
                 timezone: timezone,
                 language: navigator.language || "",
                 languages: languageList,
+                networkType: connection && connection.effectiveType ? String(connection.effectiveType) : "",
+                connectionType: connection && connection.type ? String(connection.type) : "",
+                downlink: connection && typeof connection.downlink === "number" ? String(connection.downlink) : "",
+                rtt: connection && typeof connection.rtt === "number" ? String(connection.rtt) : "",
+                onlineStatus: typeof navigator.onLine === "boolean" ? (navigator.onLine ? "online" : "offline") : "",
                 screenResolution: String(window.screen && window.screen.width || 0) + "x" + String(window.screen && window.screen.height || 0),
                 viewportSize: String(window.innerWidth || 0) + "x" + String(window.innerHeight || 0),
                 refererPath: window.location.pathname || "",

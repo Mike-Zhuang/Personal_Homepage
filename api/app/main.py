@@ -6,17 +6,22 @@ import shutil
 import subprocess
 import tempfile
 import hashlib
+import html
 import json
 import logging
 import re
+import sqlite3
 import smtplib
 import ssl
 import time
+from ipaddress import ip_address, ip_network
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
-from threading import Lock, Thread
+from threading import Lock, RLock, Thread
 from typing import Any
+from urllib.error import URLError
+from urllib.request import urlopen
 
 try:
     import tomllib
@@ -31,6 +36,7 @@ from pydantic import BaseModel, Field
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_LOG_PATH = PROJECT_ROOT / "runtime" / "contact-messages.log"
 DEFAULT_MESSAGES_PATH = PROJECT_ROOT / "runtime" / "messages" / "messages.jsonl"
+DEFAULT_CONTACT_DB_PATH = PROJECT_ROOT / "runtime" / "messages" / "messages.sqlite3"
 DEFAULT_CONTACT_SETTINGS_PATH = PROJECT_ROOT / "runtime" / "messages" / "contact-settings.json"
 DEFAULT_DATA_ROOT = PROJECT_ROOT / "data"
 DEFAULT_BACKUP_ROOT = PROJECT_ROOT / "runtime" / "backups"
@@ -67,6 +73,7 @@ MESSAGE_WRITE_LOCK = Lock()
 CONTACT_SETTINGS_LOCK = Lock()
 PUBLISH_STATE_LOCK = Lock()
 RATE_LIMIT_LOCK = Lock()
+CONTACT_DB_LOCK = RLock()
 RATE_LIMIT_BUCKETS: dict[str, dict[str, float]] = {}
 RECENT_SUBMISSIONS: dict[str, float] = {}
 PHONE_PATTERN = re.compile(r"^\+?[0-9][0-9()\-\s]{5,31}$")
@@ -117,16 +124,19 @@ def parse_int(value: str | None, default: int) -> int:
 
 CONTACT_LOG_PATH = Path(os.getenv("CONTACT_LOG_PATH", str(DEFAULT_LOG_PATH))).expanduser()
 CONTACT_MESSAGES_PATH = Path(os.getenv("CONTACT_MESSAGES_PATH", str(DEFAULT_MESSAGES_PATH))).expanduser()
+CONTACT_DB_PATH = Path(os.getenv("CONTACT_DB_PATH", str(DEFAULT_CONTACT_DB_PATH))).expanduser()
 CONTACT_SETTINGS_PATH = Path(os.getenv("CONTACT_SETTINGS_PATH", str(DEFAULT_CONTACT_SETTINGS_PATH))).expanduser()
 CONTACT_PLACEHOLDER_MODE = parse_bool(os.getenv("CONTACT_PLACEHOLDER_MODE"), default=True)
-CONTACT_RATE_LIMIT_WINDOW_SECONDS = parse_int(os.getenv("CONTACT_RATE_LIMIT_WINDOW_SECONDS"), default=300)
-CONTACT_RATE_LIMIT_MAX_REQUESTS = parse_int(os.getenv("CONTACT_RATE_LIMIT_MAX_REQUESTS"), default=6)
-CONTACT_RATE_LIMIT_BURST = parse_int(os.getenv("CONTACT_RATE_LIMIT_BURST"), default=4)
+CONTACT_RATE_LIMIT_WINDOW_SECONDS = parse_int(os.getenv("CONTACT_RATE_LIMIT_WINDOW_SECONDS"), default=3600)
+CONTACT_RATE_LIMIT_MAX_REQUESTS = parse_int(os.getenv("CONTACT_RATE_LIMIT_MAX_REQUESTS"), default=3)
+CONTACT_RATE_LIMIT_BURST = parse_int(os.getenv("CONTACT_RATE_LIMIT_BURST"), default=3)
 CONTACT_DUPLICATE_WINDOW_SECONDS = parse_int(os.getenv("CONTACT_DUPLICATE_WINDOW_SECONDS"), default=120)
 CONTACT_IP_HASH_SALT = os.getenv("CONTACT_IP_HASH_SALT", "")
 CONTACT_ERROR_LOG_PATH = Path(
     os.getenv("CONTACT_ERROR_LOG_PATH", str(PROJECT_ROOT / "runtime" / "contact-errors.jsonl"))
 ).expanduser()
+TRUSTED_PROXY_IPS = parse_origins(os.getenv("TRUSTED_PROXY_IPS", "127.0.0.1,::1"))
+CONTACT_ENABLE_GEO_LOOKUP = parse_bool(os.getenv("CONTACT_ENABLE_GEO_LOOKUP"), default=False)
 ALLOW_ORIGINS = parse_origins(os.getenv("CORS_ALLOW_ORIGINS"))
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "").strip()
 DATA_ROOT = Path(os.getenv("DATA_ROOT", str(DEFAULT_DATA_ROOT))).expanduser()
@@ -164,6 +174,18 @@ logger = logging.getLogger("personal-homepage")
 if not logger.handlers:
     logging.basicConfig(level=logging.INFO)
 
+TRUSTED_PROXY_NETWORKS = []
+for candidate in TRUSTED_PROXY_IPS:
+    try:
+        if "/" in candidate:
+            TRUSTED_PROXY_NETWORKS.append(ip_network(candidate, strict=False))
+        else:
+            parsed_ip = ip_address(candidate)
+            prefix = 32 if parsed_ip.version == 4 else 128
+            TRUSTED_PROXY_NETWORKS.append(ip_network(f"{parsed_ip}/{prefix}", strict=False))
+    except ValueError:
+        logger.warning("ignore invalid TRUSTED_PROXY_IPS entry: %s", candidate)
+
 app = FastAPI(title="Personal Homepage API", version="0.1.0")
 
 app.add_middleware(
@@ -173,6 +195,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_event() -> None:
+    init_contact_storage()
 
 
 @app.middleware("http")
@@ -402,6 +429,133 @@ def write_structured_contact_log(kind: str, payload: dict[str, Any]) -> None:
         file_obj.write("\n")
 
 
+def escape_html_text(value: str) -> str:
+    return html.escape(value, quote=True)
+
+
+def build_sanitized_contact_snapshot(name: str, email: str, phone: str, content: str) -> dict[str, str]:
+    return {
+        "nameEscaped": escape_html_text(name),
+        "emailEscaped": escape_html_text(email),
+        "phoneEscaped": escape_html_text(phone),
+        "contentEscaped": escape_html_text(content),
+    }
+
+
+def open_contact_db() -> sqlite3.Connection:
+    CONTACT_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(CONTACT_DB_PATH, timeout=10, check_same_thread=False)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def init_contact_storage() -> None:
+    with CONTACT_DB_LOCK:
+        with open_contact_db() as connection:
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS contact_messages (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    processed_at TEXT,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    phone TEXT NOT NULL,
+                    want_reply INTEGER NOT NULL,
+                    preview TEXT NOT NULL,
+                    ip_hash TEXT NOT NULL,
+                    user_agent TEXT NOT NULL,
+                    record_json TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at ON contact_messages(created_at DESC)"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_contact_messages_status_created_at ON contact_messages(status, created_at DESC)"
+            )
+            connection.commit()
+
+        migrate_legacy_jsonl_messages()
+
+
+def migrate_legacy_jsonl_messages() -> None:
+    if not CONTACT_MESSAGES_PATH.exists() or not CONTACT_MESSAGES_PATH.is_file():
+        return
+
+    legacy_records = read_legacy_message_records()
+    if not legacy_records:
+        return
+
+    with CONTACT_DB_LOCK:
+        with open_contact_db() as connection:
+            for record in legacy_records:
+                insert_message_record(connection, record, replace_existing=False)
+
+            connection.commit()
+
+
+def read_legacy_message_records() -> list[dict[str, Any]]:
+    messages: list[dict[str, Any]] = []
+    with CONTACT_MESSAGES_PATH.open("r", encoding="utf-8") as file_obj:
+        for line in file_obj:
+            payload = line.strip()
+            if not payload:
+                continue
+
+            try:
+                item = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+
+            if isinstance(item, dict) and item.get("id") and item.get("createdAt"):
+                messages.append(item)
+
+    return messages
+
+
+def insert_message_record(
+    connection: sqlite3.Connection,
+    record: dict[str, Any],
+    replace_existing: bool = True,
+) -> None:
+    insert_mode = "INSERT OR REPLACE" if replace_existing else "INSERT OR IGNORE"
+    connection.execute(
+        f"""
+        {insert_mode} INTO contact_messages (
+            id,
+            created_at,
+            status,
+            processed_at,
+            name,
+            email,
+            phone,
+            want_reply,
+            preview,
+            ip_hash,
+            user_agent,
+            record_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            str(record.get("id") or ""),
+            str(record.get("createdAt") or ""),
+            str(record.get("status") or "new"),
+            str(record.get("processedAt") or "") or None,
+            str(record.get("name") or ""),
+            str(record.get("email") or ""),
+            str(record.get("phone") or ""),
+            1 if bool(record.get("wantReply")) else 0,
+            build_message_preview(str(record.get("content") or "")),
+            str(record.get("ipHash") or ""),
+            str(record.get("userAgent") or ""),
+            json.dumps(record, ensure_ascii=False),
+        ),
+    )
+
+
 def get_default_contact_settings() -> dict[str, Any]:
     return {
         "contactPlaceholderMode": CONTACT_PLACEHOLDER_MODE,
@@ -519,17 +673,47 @@ def build_message_id() -> str:
     return f"msg_{now_part}_{token_part}"
 
 
+def is_trusted_proxy(source_ip: str) -> bool:
+    try:
+        parsed_ip = ip_address(source_ip)
+    except ValueError:
+        return False
+
+    return any(parsed_ip in network for network in TRUSTED_PROXY_NETWORKS)
+
+
+def is_public_ip(ip_value: str) -> bool:
+    try:
+        parsed_ip = ip_address(ip_value)
+    except ValueError:
+        return False
+
+    return not (
+        parsed_ip.is_loopback
+        or parsed_ip.is_private
+        or parsed_ip.is_reserved
+        or parsed_ip.is_link_local
+        or parsed_ip.is_multicast
+    )
+
+
 def get_client_ip(request: Request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    if forwarded_for:
-        first_ip = forwarded_for.split(",")[0].strip()
-        if first_ip:
-            return first_ip
+    direct_ip = request.client.host if request.client and request.client.host else "unknown"
+    if not is_trusted_proxy(direct_ip):
+        return direct_ip
 
-    if request.client and request.client.host:
-        return request.client.host
+    x_forwarded_for = request.headers.get("x-forwarded-for", "")
+    if x_forwarded_for:
+        forwarded_chain = [item.strip() for item in x_forwarded_for.split(",") if item.strip()]
+        for forwarded_ip in forwarded_chain:
+            if forwarded_ip and not is_trusted_proxy(forwarded_ip):
+                return forwarded_ip
 
-    return "unknown"
+    x_real_ip = request.headers.get("x-real-ip", "").strip()
+    if x_real_ip and not is_trusted_proxy(x_real_ip):
+        return x_real_ip
+
+    return direct_ip
 
 
 def hash_client_ip(ip_value: str) -> str:
@@ -551,6 +735,9 @@ def build_request_headers_snapshot(request: Request) -> dict[str, str]:
         "cf-connecting-ip",
         "cf-ipcountry",
         "priority",
+        "x-forwarded-proto",
+        "x-forwarded-host",
+        "x-forwarded-port",
         "sec-fetch-site",
         "sec-fetch-mode",
         "sec-fetch-dest",
@@ -574,6 +761,11 @@ def normalize_client_meta(payload: ContactRequest) -> dict[str, str]:
         "timezone",
         "language",
         "languages",
+        "networkType",
+        "connectionType",
+        "downlink",
+        "rtt",
+        "onlineStatus",
         "screenResolution",
         "viewportSize",
         "refererPath",
@@ -596,11 +788,239 @@ def normalize_client_meta(payload: ContactRequest) -> dict[str, str]:
     return normalized
 
 
-def collect_request_context(request: Request, client_meta: dict[str, str]) -> dict[str, Any]:
+def parse_positive_int(value: str, default: int = 0) -> int:
+    try:
+        parsed = int(float(value))
+    except (TypeError, ValueError):
+        return default
+    return max(parsed, default)
+
+
+def parse_screen_resolution(value: str) -> tuple[int, int]:
+    if "x" not in value:
+        return (0, 0)
+
+    width_text, height_text = value.lower().split("x", 1)
+    return (parse_positive_int(width_text), parse_positive_int(height_text))
+
+
+def detect_browser_engine(user_agent: str) -> dict[str, str]:
+    normalized = user_agent or ""
+    browser_name = "未知浏览器"
+    browser_version = "-"
+    engine_name = "未知内核"
+    engine_version = "-"
+    host_environment = "标准浏览器"
+
+    browser_patterns = [
+        ("Edge", re.compile(r"Edg/([0-9.]+)")),
+        ("Chrome", re.compile(r"Chrome/([0-9.]+)")),
+        ("Firefox", re.compile(r"Firefox/([0-9.]+)")),
+        ("Safari", re.compile(r"Version/([0-9.]+).*Safari/")),
+    ]
+    engine_patterns = [
+        ("Blink", re.compile(r"Chrome/([0-9.]+)|Edg/([0-9.]+)")),
+        ("Gecko", re.compile(r"rv:([0-9.]+).*Gecko/")),
+        ("WebKit", re.compile(r"AppleWebKit/([0-9.]+)")),
+    ]
+
+    for candidate_name, pattern in browser_patterns:
+        matched = pattern.search(normalized)
+        if matched:
+            browser_name = candidate_name
+            browser_version = next(group for group in matched.groups() if group) if matched.groups() else matched.group(1)
+            break
+
+    for candidate_name, pattern in engine_patterns:
+        matched = pattern.search(normalized)
+        if matched:
+            engine_name = candidate_name
+            engine_version = next(group for group in matched.groups() if group) if matched.groups() else matched.group(1)
+            break
+
+    if "MicroMessenger/" in normalized:
+        host_environment = "微信内置浏览器"
+        if "Windows" in normalized or "Macintosh" in normalized:
+            host_environment += " (PC版)"
+        else:
+            host_environment += " (移动版)"
+    elif "QQ/" in normalized or "QQBrowser/" in normalized:
+        host_environment = "QQ 宿主浏览器"
+
+    if "XWEB/" in normalized or "xweb/" in normalized:
+        host_environment += " / XWEB"
+
+    return {
+        "browserName": browser_name,
+        "browserVersion": browser_version,
+        "engineName": engine_name,
+        "engineVersion": engine_version,
+        "hostEnvironment": host_environment,
+    }
+
+
+def infer_device_profile(user_agent: str, client_meta: dict[str, str]) -> dict[str, Any]:
+    platform = client_meta.get("platform") or user_agent
+    hardware_concurrency = parse_positive_int(client_meta.get("hardwareConcurrency", "0"))
+    device_memory = parse_positive_int(client_meta.get("deviceMemory", "0"))
+    touch_points = parse_positive_int(client_meta.get("touchPoints", "0"))
+    screen_width, screen_height = parse_screen_resolution(client_meta.get("screenResolution", ""))
+    short_edge = min(screen_width, screen_height) if screen_width and screen_height else 0
+    ua_lower = user_agent.lower()
+
+    is_mobile_ua = any(keyword in ua_lower for keyword in ["iphone", "android", "mobile"])
+    is_tablet_ua = any(keyword in ua_lower for keyword in ["ipad", "tablet"])
+    is_windows = "windows" in ua_lower
+    is_mac = "macintosh" in ua_lower or "mac os x" in ua_lower
+
+    device_type = "未知设备"
+    capability_label = "常规设备"
+    risk_tags: list[str] = []
+
+    if is_tablet_ua or short_edge >= 768 and touch_points > 0 and not is_windows and not is_mac:
+        device_type = "平板设备"
+    elif is_mobile_ua or (touch_points > 0 and short_edge and short_edge < 768):
+        device_type = "手机设备"
+    elif is_windows or is_mac or "linux" in ua_lower:
+        device_type = "桌面设备"
+
+    if hardware_concurrency >= 8 or device_memory >= 8:
+        capability_label = "高配"
+    elif hardware_concurrency <= 2 or (0 < device_memory <= 2):
+        capability_label = "低配"
+    else:
+        capability_label = "中配"
+
+    if device_type == "手机设备":
+        portrait = f"{capability_label}安卓手机" if "android" in ua_lower else f"{capability_label}手机"
+        if "iphone" in ua_lower:
+            portrait = "苹果手机"
+    elif device_type == "平板设备":
+        portrait = f"{capability_label}平板"
+    elif is_windows:
+        portrait = f"Windows {capability_label}工作站"
+    elif is_mac:
+        portrait = f"macOS {capability_label}工作站"
+    else:
+        portrait = f"{capability_label}{device_type}"
+
+    if is_mobile_ua and touch_points == 0:
+        risk_tags.append("高风险伪造设备")
+
+    return {
+        "deviceType": device_type,
+        "portrait": portrait,
+        "platformHint": platform or "-",
+        "hardwareConcurrency": hardware_concurrency,
+        "deviceMemoryGb": device_memory,
+        "screenResolution": client_meta.get("screenResolution") or "-",
+        "touchPoints": touch_points,
+        "riskTags": risk_tags,
+    }
+
+
+def infer_network_profile(headers_snapshot: dict[str, str], client_meta: dict[str, str], user_agent: str) -> dict[str, Any]:
+    network_type = client_meta.get("networkType") or client_meta.get("connectionType") or "unknown"
+    touch_points = parse_positive_int(client_meta.get("touchPoints", "0"))
+    ua_lower = user_agent.lower()
+    risk_tags: list[str] = []
+
+    if any(keyword in ua_lower for keyword in ["iphone", "android", "mobile"]) and touch_points == 0:
+        risk_tags.append("高风险伪造设备")
+
+    return {
+        "networkType": network_type,
+        "downlinkMbps": client_meta.get("downlink") or "-",
+        "rttMs": client_meta.get("rtt") or "-",
+        "onlineStatus": client_meta.get("onlineStatus") or "-",
+        "touchValidation": "触控能力正常" if touch_points > 0 else "未检测到触控输入",
+        "riskTags": risk_tags,
+        "forwardedChain": headers_snapshot.get("x-forwarded-for") or "-",
+    }
+
+
+def fetch_geo_location_from_ip(ip_value: str) -> dict[str, Any]:
+    if not CONTACT_ENABLE_GEO_LOOKUP or not is_public_ip(ip_value):
+        return {
+            "status": "disabled",
+            "provider": "ip-api",
+            "lookupUrl": f"http://ip-api.com/json/{ip_value}?lang=zh-CN",
+            "note": "已预留 GeoIP 扩展，默认关闭外部查询。",
+        }
+
+    lookup_url = (
+        "http://ip-api.com/json/"
+        f"{ip_value}?lang=zh-CN&fields=status,message,country,regionName,city,isp,org,as,query,timezone"
+    )
+    try:
+        with urlopen(lookup_url, timeout=3) as response:  # noqa: S310
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, URLError, json.JSONDecodeError) as error:
+        return {
+            "status": "error",
+            "provider": "ip-api",
+            "lookupUrl": lookup_url,
+            "message": str(error),
+        }
+
+    return payload if isinstance(payload, dict) else {"status": "error", "provider": "ip-api"}
+
+
+def build_enriched_context(client_ip: str, user_agent: str, headers_snapshot: dict[str, str], client_meta: dict[str, str]) -> dict[str, Any]:
+    browser_profile = detect_browser_engine(user_agent)
+    device_profile = infer_device_profile(user_agent, client_meta)
+    network_profile = infer_network_profile(headers_snapshot, client_meta, user_agent)
+    all_risk_tags = list(dict.fromkeys(device_profile.get("riskTags", []) + network_profile.get("riskTags", [])))
+
+    return {
+        "summary": {
+            "设备实体画像": device_profile.get("portrait"),
+            "浏览器与宿主环境": (
+                f"{browser_profile.get('browserName')} {browser_profile.get('browserVersion')} / "
+                f"{browser_profile.get('engineName')} {browser_profile.get('engineVersion')} / "
+                f"{browser_profile.get('hostEnvironment')}"
+            ),
+            "网络与交互能力": (
+                f"网络: {network_profile.get('networkType')} / "
+                f"触控: {network_profile.get('touchValidation')}"
+            ),
+            "风险提示": "，".join(all_risk_tags) if all_risk_tags else "未发现明显伪造信号",
+        },
+        "deviceEntityProfile": {
+            "labelZh": "设备实体画像",
+            "portrait": device_profile.get("portrait"),
+            "deviceType": device_profile.get("deviceType"),
+            "platformHint": device_profile.get("platformHint"),
+            "hardwareConcurrency": device_profile.get("hardwareConcurrency"),
+            "deviceMemoryGb": device_profile.get("deviceMemoryGb"),
+            "screenResolution": device_profile.get("screenResolution"),
+        },
+        "browserHostProfile": {
+            "labelZh": "浏览器与宿主环境",
+            **browser_profile,
+        },
+        "networkInteractionProfile": {
+            "labelZh": "网络与交互能力",
+            **network_profile,
+        },
+        "riskAssessment": {
+            "labelZh": "风险评估",
+            "riskTags": all_risk_tags,
+            "isHighRisk": "高风险伪造设备" in all_risk_tags,
+        },
+        "geo_location": {
+            "labelZh": "地理位置扩展预留",
+            **fetch_geo_location_from_ip(client_ip),
+        },
+    }
+
+
+def collect_request_context(request: Request, client_meta: dict[str, str], client_ip: str) -> dict[str, Any]:
     headers_snapshot = build_request_headers_snapshot(request)
     parsed_url = request.url
     referer = headers_snapshot.get("referer", "")
     origin = headers_snapshot.get("origin", "")
+    user_agent = headers_snapshot.get("user-agent", "")
 
     return {
         "method": request.method,
@@ -609,10 +1029,13 @@ def collect_request_context(request: Request, client_meta: dict[str, str]) -> di
         "scheme": sanitize_optional_text(parsed_url.scheme, limit=20),
         "host": sanitize_optional_text(parsed_url.hostname or "", limit=120),
         "port": sanitize_meta_value(parsed_url.port, limit=16),
+        "clientIp": client_ip,
+        "isTrustedProxyHop": is_trusted_proxy(request.client.host) if request.client and request.client.host else False,
         "referer": referer,
         "origin": origin,
         "headers": headers_snapshot,
         "clientMeta": client_meta,
+        "enrichment": build_enriched_context(client_ip, user_agent, headers_snapshot, client_meta),
     }
 
 
@@ -628,11 +1051,10 @@ def detect_suspicious_patterns(*values: str) -> list[str]:
 
 
 def build_submission_identity(ip_hash: str, user_agent: str, client_meta: dict[str, str]) -> tuple[str, str]:
-    ua_hash = hashlib.sha256(user_agent.encode("utf-8")).hexdigest()[:12] if user_agent else "ua-none"
     fingerprint_source = client_meta.get("fingerprint") or client_meta.get("viewportSize") or client_meta.get("screenResolution") or "meta-none"
     fingerprint_hash = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()[:12]
     return (
-        f"identity:{ip_hash}:{ua_hash}:{fingerprint_hash}",
+        f"identity:{ip_hash}:{fingerprint_hash}",
         f"network:{ip_hash}",
     )
 
@@ -683,59 +1105,43 @@ def allow_contact_submission(identity_key: str, network_key: str, dedupe_key: st
 
 
 def read_message_records() -> list[dict[str, Any]]:
-    if not CONTACT_MESSAGES_PATH.exists() or not CONTACT_MESSAGES_PATH.is_file():
-        return []
+    init_contact_storage()
+    with CONTACT_DB_LOCK:
+        with open_contact_db() as connection:
+            rows = connection.execute(
+                "SELECT record_json FROM contact_messages ORDER BY created_at ASC, id ASC"
+            ).fetchall()
 
     messages: list[dict[str, Any]] = []
-    with CONTACT_MESSAGES_PATH.open("r", encoding="utf-8") as file_obj:
-        for line in file_obj:
-            payload = line.strip()
-            if not payload:
-                continue
+    for row in rows:
+        try:
+            item = json.loads(str(row["record_json"]))
+        except (TypeError, json.JSONDecodeError):
+            continue
 
-            try:
-                item = json.loads(payload)
-            except json.JSONDecodeError:
-                continue
-
-            if isinstance(item, dict) and item.get("id") and item.get("createdAt"):
-                messages.append(item)
+        if isinstance(item, dict) and item.get("id") and item.get("createdAt"):
+            messages.append(item)
 
     return messages
 
 
 def write_message_records(messages: list[dict[str, Any]]) -> None:
-    CONTACT_MESSAGES_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    temp_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            dir=str(CONTACT_MESSAGES_PATH.parent),
-            delete=False,
-            prefix=f".{CONTACT_MESSAGES_PATH.name}.",
-            suffix=".tmp",
-        ) as temp_file:
+    init_contact_storage()
+    with CONTACT_DB_LOCK:
+        with open_contact_db() as connection:
+            connection.execute("DELETE FROM contact_messages")
             for item in messages:
-                temp_file.write(json.dumps(item, ensure_ascii=False))
-                temp_file.write("\n")
-
-            temp_path = Path(temp_file.name)
-
-        os.replace(temp_path, CONTACT_MESSAGES_PATH)
-    finally:
-        if temp_path is not None and temp_path.exists():
-            temp_path.unlink(missing_ok=True)
+                insert_message_record(connection, item)
+            connection.commit()
 
 
 def append_message_record(record: dict[str, Any]) -> None:
-    CONTACT_MESSAGES_PATH.parent.mkdir(parents=True, exist_ok=True)
-
+    init_contact_storage()
     with MESSAGE_WRITE_LOCK:
-        with CONTACT_MESSAGES_PATH.open("a", encoding="utf-8") as file_obj:
-            file_obj.write(json.dumps(record, ensure_ascii=False))
-            file_obj.write("\n")
+        with CONTACT_DB_LOCK:
+            with open_contact_db() as connection:
+                insert_message_record(connection, record)
+                connection.commit()
 
 
 def build_message_preview(content: str, limit: int = 72) -> str:
@@ -759,35 +1165,64 @@ def to_admin_message_item(record: dict[str, Any]) -> AdminMessageItem:
 
 
 def find_message_by_id(message_id: str) -> dict[str, Any] | None:
-    for record in read_message_records():
-        if str(record.get("id")) == message_id:
-            return record
-    return None
+    init_contact_storage()
+    with CONTACT_DB_LOCK:
+        with open_contact_db() as connection:
+            row = connection.execute(
+                "SELECT record_json FROM contact_messages WHERE id = ? LIMIT 1",
+                (message_id,),
+            ).fetchone()
+
+    if row is None:
+        return None
+
+    try:
+        payload = json.loads(str(row["record_json"]))
+    except (TypeError, json.JSONDecodeError):
+        return None
+
+    return payload if isinstance(payload, dict) else None
 
 
 def mark_message_processed(message_id: str) -> str | None:
+    init_contact_storage()
     with MESSAGE_WRITE_LOCK:
-        messages = read_message_records()
-        target_index = -1
+        with CONTACT_DB_LOCK:
+            with open_contact_db() as connection:
+                row = connection.execute(
+                    "SELECT record_json FROM contact_messages WHERE id = ? LIMIT 1",
+                    (message_id,),
+                ).fetchone()
+                if row is None:
+                    return None
 
-        for index, record in enumerate(messages):
-            if str(record.get("id")) == message_id:
-                target_index = index
-                break
+                try:
+                    current = json.loads(str(row["record_json"]))
+                except (TypeError, json.JSONDecodeError):
+                    return None
 
-        if target_index < 0:
-            return None
+                if str(current.get("status")) == "processed" and current.get("processedAt"):
+                    return str(current.get("processedAt"))
 
-        current = messages[target_index]
-        if str(current.get("status")) == "processed" and current.get("processedAt"):
-            return str(current.get("processedAt"))
-
-        processed_at = datetime.now(timezone.utc).isoformat()
-        current["status"] = "processed"
-        current["processedAt"] = processed_at
-        messages[target_index] = current
-        write_message_records(messages)
-        return processed_at
+                processed_at = datetime.now(timezone.utc).isoformat()
+                current["status"] = "processed"
+                current["processedAt"] = processed_at
+                connection.execute(
+                    """
+                    UPDATE contact_messages
+                    SET status = ?, processed_at = ?, preview = ?, record_json = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        "processed",
+                        processed_at,
+                        build_message_preview(str(current.get("content") or "")),
+                        json.dumps(current, ensure_ascii=False),
+                        message_id,
+                    ),
+                )
+                connection.commit()
+                return processed_at
 
 
 def is_smtp_configured(settings: dict[str, Any]) -> bool:
@@ -804,9 +1239,12 @@ def build_notification_email_body(record: dict[str, Any]) -> str:
     request_context = record.get("requestContext") if isinstance(record.get("requestContext"), dict) else {}
     client_meta = request_context.get("clientMeta") if isinstance(request_context.get("clientMeta"), dict) else {}
     headers = request_context.get("headers") if isinstance(request_context.get("headers"), dict) else {}
+    enrichment = request_context.get("enrichment") if isinstance(request_context.get("enrichment"), dict) else {}
+    enrichment_summary = enrichment.get("summary") if isinstance(enrichment.get("summary"), dict) else {}
     suspicious_tags = record.get("securitySignals") if isinstance(record.get("securitySignals"), list) else []
     client_meta_lines = [f"{key}: {value}" for key, value in client_meta.items()]
     header_lines = [f"{key}: {value}" for key, value in headers.items()]
+    summary_lines = [f"{key}: {value}" for key, value in enrichment_summary.items()]
 
     return "\n".join(
         [
@@ -829,9 +1267,13 @@ def build_notification_email_body(record: dict[str, Any]) -> str:
             f"Path: {request_context.get('path') or '-'}",
             f"Query: {request_context.get('query') or '-'}",
             f"Host: {request_context.get('host') or '-'}",
+            f"Client IP: {request_context.get('clientIp') or '-'}",
             f"Origin: {request_context.get('origin') or '-'}",
             f"Referer: {request_context.get('referer') or '-'}",
             f"Security Signals: {', '.join(suspicious_tags) if suspicious_tags else '-'}",
+            "",
+            "[Enrichment Summary]",
+            *(summary_lines or ["-"]),
             "",
             "[Client Meta]",
             *(client_meta_lines or ["-"]),
@@ -1371,7 +1813,8 @@ async def submit_contact(payload: ContactRequest, request: Request) -> ContactRe
     received_at = datetime.now(timezone.utc).isoformat()
     settings = read_contact_settings()
     client_meta = normalize_client_meta(payload)
-    request_context = collect_request_context(request, client_meta)
+    client_ip = get_client_ip(request)
+    request_context = collect_request_context(request, client_meta, client_ip)
 
     # 蜜罐命中时直接接受，避免给脚本明确反馈。
     if payload.website and payload.website.strip():
@@ -1382,7 +1825,6 @@ async def submit_contact(payload: ContactRequest, request: Request) -> ContactRe
     email = sanitize_optional_text(payload.email, limit=120)
     phone = sanitize_optional_text(payload.phone, limit=32)
     user_agent = sanitize_header_value(request.headers.get("user-agent"))
-    client_ip = get_client_ip(request)
     ip_hash = hash_client_ip(client_ip)
     identity_key, network_key = build_submission_identity(ip_hash, user_agent, client_meta)
     dedupe_seed = "|".join([ip_hash, email, phone, content])
@@ -1430,13 +1872,16 @@ async def submit_contact(payload: ContactRequest, request: Request) -> ContactRe
         "ipHash": ip_hash,
         "userAgent": user_agent,
         "securitySignals": security_signals,
+        "sanitizedFields": build_sanitized_contact_snapshot(name, email, phone, content),
         "requestContext": request_context,
     }
 
     try:
         CONTACT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with CONTACT_LOG_PATH.open("a", encoding="utf-8") as file_obj:
-            file_obj.write(f"{received_at}\t{name or '-'}\t{email or '-'}\t{phone or '-'}\t{content}\n")
+            file_obj.write(
+                f"{received_at}\t{name or '-'}\t{email or '-'}\t{phone or '-'}\t{sanitize_for_log(content)}\n"
+            )
 
         append_message_record(message_record)
     except OSError as error:
