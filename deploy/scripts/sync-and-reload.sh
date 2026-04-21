@@ -35,6 +35,7 @@ SITE_ROOT="${SITE_ROOT:-/var/www/personal-homepage/frontend/dist}"
 API_SERVICE="${API_SERVICE:-personal-homepage-api}"
 HUGO_BIN="${HUGO_BIN:-/usr/local/bin/hugo}"
 PUBLISH_SCRIPT="${PUBLISH_SCRIPT:-$PROJECT_ROOT/deploy/scripts/publish-content.sh}"
+API_HEALTH_URL="${API_HEALTH_URL:-http://127.0.0.1:8001/api/health}"
 
 if [[ ! -x "$HUGO_BIN" ]]; then
   HUGO_BIN="$(command -v hugo || true)"
@@ -55,9 +56,9 @@ if [[ ! -x "$PUBLISH_SCRIPT" ]]; then
   exit 127
 fi
 
-SITE_ROOT="$SITE_ROOT" RELOAD_NGINX=false "$PUBLISH_SCRIPT"
+SITE_ROOT="$SITE_ROOT" RELOAD_NGINX=false HUGO_BIN="$HUGO_BIN" "$PUBLISH_SCRIPT"
 
 systemctl restart "$API_SERVICE"
 systemctl reload nginx
 
-curl -fsS "http://127.0.0.1:8000/api/health" >/dev/null
+curl -fsS "$API_HEALTH_URL" >/dev/null

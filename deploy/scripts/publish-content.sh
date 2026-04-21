@@ -100,6 +100,18 @@ CONTENT_DATA_ROOT="${DATA_ROOT:-$REPO_DATA_ROOT}"
 BUILD_PARENT="$PROJECT_ROOT/runtime/build-workdir"
 mkdir -p "$BUILD_PARENT"
 
+HUGO_BIN="${HUGO_BIN:-/usr/local/bin/hugo}"
+if [[ ! -x "$HUGO_BIN" ]]; then
+  HUGO_BIN="$(command -v hugo || true)"
+fi
+
+if [[ -z "$HUGO_BIN" ]]; then
+  echo "Failed(code=127): hugo executable not found."
+  exit 127
+fi
+
+echo "Resolved hugo binary: $HUGO_BIN"
+
 if [[ "$CONTENT_DATA_ROOT" != "$REPO_DATA_ROOT" ]]; then
   if [[ ! -d "$CONTENT_DATA_ROOT" ]]; then
     echo "Failed(code=1): DATA_ROOT does not exist: $CONTENT_DATA_ROOT"
@@ -136,7 +148,7 @@ echo "Resolved Hugo cache directory: $HUGO_CACHEDIR"
 "$BUILD_PROJECT_ROOT/scripts/check-template-asset-paths.sh"
 (
   cd "$BUILD_PROJECT_ROOT"
-  hugo --gc --minify
+  "$HUGO_BIN" --gc --minify
 )
 
 if ! rsync -rlt --delete --no-perms --no-owner --no-group "$BUILD_PROJECT_ROOT/public/" "$SITE_ROOT/"; then
