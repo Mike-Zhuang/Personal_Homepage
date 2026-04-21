@@ -51,3 +51,5 @@ location = "Shanghai, China"
 [footer]
 lineOne = "Built with Hugo and a minimal FastAPI backend."
 lineTwo = "Resume download is intentionally kept private."
+icpNumber = "沪ICP备2026015123号"
+icpUrl = "https://beian.miit.gov.cn/"

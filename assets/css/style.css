@@ -736,6 +736,23 @@ main {
     color: var(--sk-dark-tertiary);
 }
 
+.site-icp {
+    justify-self: center;
+    text-align: center;
+    margin-top: 8px;
+}
+
+.site-icp a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.site-icp a:hover,
+.site-icp a:focus-visible {
+    color: var(--sk-link-blue-dark);
+    text-decoration: underline;
+}
+
 .reveal {
     opacity: 0;
     transform: translateY(18px);

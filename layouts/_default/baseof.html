@@ -10,8 +10,8 @@
         <header class="site-header" id="top">
             <div class="site-header-inner">
                 <a class="brand" href="{{ "/" | relURL }}" aria-label="Homepage">
-                    <span class="brand-label">{{ .Site.Data.site.hero.eyebrow }}</span>
-                    <span class="brand-title">{{ .Site.Data.site.hero.title }}</span>
+                    <span class="brand-label">{{ hugo.Data.site.hero.eyebrow }}</span>
+                    <span class="brand-title">{{ hugo.Data.site.hero.title }}</span>
                 </a>
 
                 <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
@@ -36,9 +36,12 @@
 
         <footer class="site-footer theme-dark reveal" data-reveal-index="5">
             <div class="site-footer-inner">
-                <p>{{ .Site.Data.site.footer.lineOne }}</p>
-                <p>{{ .Site.Data.site.footer.lineTwo }}</p>
+                <p>{{ hugo.Data.site.footer.lineOne }}</p>
+                <p>{{ hugo.Data.site.footer.lineTwo }}</p>
                 <p>&copy; {{ now.Format "2006" }}</p>
+                {{ with hugo.Data.site.footer.icpNumber }}
+                <p class="site-icp"><a href="{{ hugo.Data.site.footer.icpUrl }}" target="_blank" rel="noreferrer">{{ . }}</a></p>
+                {{ end }}
             </div>
         </footer>
     </div>
