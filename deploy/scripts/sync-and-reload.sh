@@ -44,6 +44,26 @@ reload_nginx() {
   echo "Warning: nginx reload skipped (service manager not detected)."
 }
 
+wait_for_api_health() {
+  local attempt=1
+  local retry_delays=(1 2 3 5)
+  local total_attempts=$(( ${#retry_delays[@]} + 1 ))
+
+  while true; do
+    if curl -fsS "$API_HEALTH_URL" >/dev/null; then
+      return 0
+    fi
+
+    if (( attempt >= total_attempts )); then
+      echo "Failed(code=7): API health check failed after ${attempt} attempts: $API_HEALTH_URL"
+      return 1
+    fi
+
+    sleep "${retry_delays[$((attempt - 1))]}"
+    attempt=$((attempt + 1))
+  done
+}
+
 BRANCH="${BRANCH:-main}"
 SITE_ROOT="${SITE_ROOT:-/var/www/personal-homepage/frontend/dist}"
 API_SERVICE="${API_SERVICE:-personal-homepage-api}"
@@ -75,4 +95,4 @@ SITE_ROOT="$SITE_ROOT" RELOAD_NGINX=false HUGO_BIN="$HUGO_BIN" "$PUBLISH_SCRIPT"
 systemctl restart "$API_SERVICE"
 reload_nginx
 
-curl -fsS "$API_HEALTH_URL" >/dev/null
+wait_for_api_health
