@@ -447,6 +447,23 @@ body {
     letter-spacing: -0.14px;
 }
 
+.message-risk-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(29, 29, 31, 0.08);
+    color: var(--sk-ink);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.message-risk-badge.danger {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
 .message-content-title {
     margin-top: 2px !important;
 }

@@ -1129,10 +1129,12 @@
         if (state.activeMessageDetail) {
             var requestContext = state.activeMessageDetail.requestContext || {};
             var enrichment = requestContext.enrichment || {};
+            var riskAssessment = enrichment.riskAssessment || {};
             var securitySignals = Array.isArray(state.activeMessageDetail.securitySignals)
                 ? state.activeMessageDetail.securitySignals.join(", ")
                 : "";
             var summaryJson = formatJsonBlock(enrichment.summary || {});
+            var redAlert = riskAssessment.redAlertLabel || "无";
             detailHtml = ""
                 + "<div class=\"message-detail-grid\">"
                 + "<p><strong>ID:</strong> " + escapeHtml(state.activeMessageDetail.id || "-") + "</p>"
@@ -1150,6 +1152,7 @@
                 + "<p><strong>Origin:</strong> " + escapeHtml(requestContext.origin || "-") + "</p>"
                 + "<p><strong>Referer:</strong> " + escapeHtml(requestContext.referer || "-") + "</p>"
                 + "<p><strong>Security Signals:</strong> " + escapeHtml(securitySignals || "-") + "</p>"
+                + "<p><strong>异常探针预警:</strong> <span class=\"" + (redAlert !== "无" ? "message-risk-badge danger" : "message-risk-badge") + "\">" + escapeHtml(redAlert) + "</span></p>"
                 + "</div>"
                 + "<h4 class=\"panel-subhead message-content-title\">Message</h4>"
                 + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(state.activeMessageDetail.content || "") + "</pre>"

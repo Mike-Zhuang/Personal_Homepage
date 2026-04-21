@@ -14,6 +14,7 @@ import sqlite3
 import smtplib
 import ssl
 import time
+import unicodedata
 from ipaddress import ip_address, ip_network
 from datetime import datetime, timezone
 from email.message import EmailMessage
@@ -31,13 +32,15 @@ except ModuleNotFoundError:
 import tomli_w
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_LOG_PATH = PROJECT_ROOT / "runtime" / "contact-messages.log"
 DEFAULT_MESSAGES_PATH = PROJECT_ROOT / "runtime" / "messages" / "messages.jsonl"
 DEFAULT_CONTACT_DB_PATH = PROJECT_ROOT / "runtime" / "messages" / "messages.sqlite3"
 DEFAULT_CONTACT_SETTINGS_PATH = PROJECT_ROOT / "runtime" / "messages" / "contact-settings.json"
+DEFAULT_SENSITIVE_WORDS_PATH = PROJECT_ROOT / "api" / "app" / "sensitive-words.txt"
 DEFAULT_DATA_ROOT = PROJECT_ROOT / "data"
 DEFAULT_BACKUP_ROOT = PROJECT_ROOT / "runtime" / "backups"
 DEFAULT_PUBLISH_SCRIPT = PROJECT_ROOT / "deploy" / "scripts" / "publish-content.sh"
@@ -76,8 +79,11 @@ RATE_LIMIT_LOCK = Lock()
 CONTACT_DB_LOCK = RLock()
 RATE_LIMIT_BUCKETS: dict[str, dict[str, float]] = {}
 RECENT_SUBMISSIONS: dict[str, float] = {}
+SENSITIVE_WORDS_ROOT: dict[str, Any] = {}
 PHONE_PATTERN = re.compile(r"^\+?[0-9][0-9()\-\s]{5,31}$")
 EMAIL_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._%+\-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)+$")
+SENSITIVE_WORD_END = "__end__"
+IGNORED_SENSITIVE_CHARS = set(" \t\r\n-_*.,;:|/\\'\"`~!@#$%^&()+=<>[]{}·。，“”‘’、！？…·")
 SUSPICIOUS_PATTERN_RULES = {
     "xssScriptTag": re.compile(r"<\s*script\b", re.IGNORECASE),
     "xssInlineHandler": re.compile(r"\bon\w+\s*=", re.IGNORECASE),
@@ -126,10 +132,14 @@ CONTACT_LOG_PATH = Path(os.getenv("CONTACT_LOG_PATH", str(DEFAULT_LOG_PATH))).ex
 CONTACT_MESSAGES_PATH = Path(os.getenv("CONTACT_MESSAGES_PATH", str(DEFAULT_MESSAGES_PATH))).expanduser()
 CONTACT_DB_PATH = Path(os.getenv("CONTACT_DB_PATH", str(DEFAULT_CONTACT_DB_PATH))).expanduser()
 CONTACT_SETTINGS_PATH = Path(os.getenv("CONTACT_SETTINGS_PATH", str(DEFAULT_CONTACT_SETTINGS_PATH))).expanduser()
+SENSITIVE_WORDS_PATH = Path(os.getenv("SENSITIVE_WORDS_PATH", str(DEFAULT_SENSITIVE_WORDS_PATH))).expanduser()
 CONTACT_PLACEHOLDER_MODE = parse_bool(os.getenv("CONTACT_PLACEHOLDER_MODE"), default=True)
-CONTACT_RATE_LIMIT_WINDOW_SECONDS = parse_int(os.getenv("CONTACT_RATE_LIMIT_WINDOW_SECONDS"), default=3600)
-CONTACT_RATE_LIMIT_MAX_REQUESTS = parse_int(os.getenv("CONTACT_RATE_LIMIT_MAX_REQUESTS"), default=3)
-CONTACT_RATE_LIMIT_BURST = parse_int(os.getenv("CONTACT_RATE_LIMIT_BURST"), default=3)
+CONTACT_MAX_BODY_BYTES = parse_int(os.getenv("CONTACT_MAX_BODY_BYTES"), default=10 * 1024)
+CONTACT_MAX_JSON_DEPTH = parse_int(os.getenv("CONTACT_MAX_JSON_DEPTH"), default=8)
+CONTACT_MAX_INTEGER_ABS = parse_int(os.getenv("CONTACT_MAX_INTEGER_ABS"), default=2147483647)
+CONTACT_RATE_LIMIT_WINDOW_SECONDS = parse_int(os.getenv("CONTACT_RATE_LIMIT_WINDOW_SECONDS"), default=60)
+CONTACT_RATE_LIMIT_MAX_REQUESTS = parse_int(os.getenv("CONTACT_RATE_LIMIT_MAX_REQUESTS"), default=2)
+CONTACT_RATE_LIMIT_BURST = parse_int(os.getenv("CONTACT_RATE_LIMIT_BURST"), default=2)
 CONTACT_DUPLICATE_WINDOW_SECONDS = parse_int(os.getenv("CONTACT_DUPLICATE_WINDOW_SECONDS"), default=120)
 CONTACT_IP_HASH_SALT = os.getenv("CONTACT_IP_HASH_SALT", "")
 CONTACT_ERROR_LOG_PATH = Path(
@@ -200,6 +210,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event() -> None:
     init_contact_storage()
+    load_sensitive_words()
 
 
 @app.middleware("http")
@@ -222,7 +233,35 @@ async def add_security_headers(request: Request, call_next):  # type: ignore[ove
     return response
 
 
+@app.middleware("http")
+async def contact_payload_guard(request: Request, call_next):  # type: ignore[override]
+    if request.url.path == "/api/contact" and request.method.upper() == "POST":
+        try:
+            content_type = request.headers.get("content-type", "").lower()
+            if "application/json" not in content_type:
+                raise HTTPException(status_code=415, detail="Contact endpoint only accepts application/json.")
+
+            content_length_text = request.headers.get("content-length", "").strip()
+            if content_length_text:
+                try:
+                    content_length_value = int(content_length_text)
+                except ValueError as error:
+                    raise HTTPException(status_code=400, detail="Invalid Content-Length header.") from error
+
+                if content_length_value > CONTACT_MAX_BODY_BYTES:
+                    raise HTTPException(status_code=413, detail="Request body is too large.")
+
+            body_bytes = await request.body()
+            request.state.contact_payload = parse_contact_request_payload(body_bytes)
+        except HTTPException as error:
+            return JSONResponse(status_code=error.status_code, content={"detail": error.detail})
+
+    return await call_next(request)
+
+
 class ContactRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
     name: str | None = Field(default=None, max_length=80)
     email: str | None = Field(default=None, max_length=120)
     phone: str | None = Field(default=None, max_length=32)
@@ -440,6 +479,132 @@ def build_sanitized_contact_snapshot(name: str, email: str, phone: str, content:
         "phoneEscaped": escape_html_text(phone),
         "contentEscaped": escape_html_text(content),
     }
+
+
+def normalize_sensitive_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value).casefold()
+    chars: list[str] = []
+    for char in normalized:
+        if char in IGNORED_SENSITIVE_CHARS:
+            continue
+        if char.isalnum() or "\u4e00" <= char <= "\u9fff":
+            chars.append(char)
+    return "".join(chars)
+
+
+def add_sensitive_word(word: str) -> None:
+    normalized = normalize_sensitive_text(word)
+    if not normalized:
+        return
+
+    cursor = SENSITIVE_WORDS_ROOT
+    for char in normalized:
+        cursor = cursor.setdefault(char, {})
+    cursor[SENSITIVE_WORD_END] = normalized
+
+
+def load_sensitive_words() -> None:
+    SENSITIVE_WORDS_ROOT.clear()
+    if not SENSITIVE_WORDS_PATH.exists() or not SENSITIVE_WORDS_PATH.is_file():
+        logger.warning("sensitive words file not found: %s", SENSITIVE_WORDS_PATH)
+        return
+
+    with SENSITIVE_WORDS_PATH.open("r", encoding="utf-8") as file_obj:
+        for line in file_obj:
+            candidate = line.strip()
+            if not candidate or candidate.startswith("#"):
+                continue
+            add_sensitive_word(candidate)
+
+
+def find_sensitive_words(*values: str) -> list[str]:
+    if not SENSITIVE_WORDS_ROOT:
+        load_sensitive_words()
+
+    matched_words: list[str] = []
+    for value in values:
+        normalized = normalize_sensitive_text(value)
+        if not normalized:
+            continue
+
+        for start_index in range(len(normalized)):
+            cursor = SENSITIVE_WORDS_ROOT
+            for current_char in normalized[start_index:]:
+                if current_char not in cursor:
+                    break
+                cursor = cursor[current_char]
+                matched_word = cursor.get(SENSITIVE_WORD_END)
+                if matched_word:
+                    matched_words.append(str(matched_word))
+
+    return list(dict.fromkeys(matched_words))
+
+
+def parse_json_int(value: str) -> int:
+    if len(value.lstrip("-")) > 10:
+        raise ValueError("Integer is too large.")
+
+    parsed = int(value)
+    if abs(parsed) > CONTACT_MAX_INTEGER_ABS:
+        raise ValueError("Integer exceeds allowed range.")
+
+    return parsed
+
+
+def parse_json_float(value: str) -> float:
+    if len(value) > 32:
+        raise ValueError("Float is too large.")
+    parsed = float(value)
+    if abs(parsed) > float(CONTACT_MAX_INTEGER_ABS):
+        raise ValueError("Float exceeds allowed range.")
+    return parsed
+
+
+def reject_json_constant(value: str) -> None:
+    raise ValueError(f"Unsupported JSON constant: {value}")
+
+
+def validate_json_depth(value: Any, depth: int = 0) -> None:
+    if depth > CONTACT_MAX_JSON_DEPTH:
+        raise HTTPException(status_code=413, detail="JSON structure is too deep.")
+
+    if isinstance(value, dict):
+        for nested_value in value.values():
+            validate_json_depth(nested_value, depth + 1)
+        return
+
+    if isinstance(value, list):
+        for nested_value in value:
+            validate_json_depth(nested_value, depth + 1)
+
+
+def parse_contact_request_payload(body_bytes: bytes) -> dict[str, Any]:
+    if len(body_bytes) > CONTACT_MAX_BODY_BYTES:
+        raise HTTPException(status_code=413, detail="Request body is too large.")
+
+    try:
+        body_text = body_bytes.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise HTTPException(status_code=400, detail="Request body must be valid UTF-8 JSON.") from error
+
+    try:
+        payload = json.loads(
+            body_text,
+            parse_int=parse_json_int,
+            parse_float=parse_json_float,
+            parse_constant=reject_json_constant,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=f"Invalid JSON payload: {error}") from error
+    except json.JSONDecodeError as error:
+        raise HTTPException(status_code=400, detail="Malformed JSON payload.") from error
+
+    validate_json_depth(payload)
+
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=422, detail="Contact payload must be a JSON object.")
+
+    return payload
 
 
 def open_contact_db() -> sqlite3.Connection:
@@ -924,9 +1089,12 @@ def infer_network_profile(headers_snapshot: dict[str, str], client_meta: dict[st
     touch_points = parse_positive_int(client_meta.get("touchPoints", "0"))
     ua_lower = user_agent.lower()
     risk_tags: list[str] = []
+    red_alert_label = "无"
 
     if any(keyword in ua_lower for keyword in ["iphone", "android", "mobile"]) and touch_points == 0:
         risk_tags.append("高风险伪造设备")
+        risk_tags.append("爬虫嫌疑")
+        red_alert_label = "红色告警：高风险伪造设备/爬虫"
 
     return {
         "networkType": network_type,
@@ -935,6 +1103,7 @@ def infer_network_profile(headers_snapshot: dict[str, str], client_meta: dict[st
         "onlineStatus": client_meta.get("onlineStatus") or "-",
         "touchValidation": "触控能力正常" if touch_points > 0 else "未检测到触控输入",
         "riskTags": risk_tags,
+        "redAlertLabel": red_alert_label,
         "forwardedChain": headers_snapshot.get("x-forwarded-for") or "-",
     }
 
@@ -984,6 +1153,7 @@ def build_enriched_context(client_ip: str, user_agent: str, headers_snapshot: di
                 f"网络: {network_profile.get('networkType')} / "
                 f"触控: {network_profile.get('touchValidation')}"
             ),
+            "异常探针预警": network_profile.get("redAlertLabel"),
             "风险提示": "，".join(all_risk_tags) if all_risk_tags else "未发现明显伪造信号",
         },
         "deviceEntityProfile": {
@@ -1007,6 +1177,7 @@ def build_enriched_context(client_ip: str, user_agent: str, headers_snapshot: di
             "labelZh": "风险评估",
             "riskTags": all_risk_tags,
             "isHighRisk": "高风险伪造设备" in all_risk_tags,
+            "redAlertLabel": network_profile.get("redAlertLabel"),
         },
         "geo_location": {
             "labelZh": "地理位置扩展预留",
@@ -1242,6 +1413,7 @@ def build_notification_email_body(record: dict[str, Any]) -> str:
     enrichment = request_context.get("enrichment") if isinstance(request_context.get("enrichment"), dict) else {}
     enrichment_summary = enrichment.get("summary") if isinstance(enrichment.get("summary"), dict) else {}
     suspicious_tags = record.get("securitySignals") if isinstance(record.get("securitySignals"), list) else []
+    sensitive_words = record.get("sensitiveWords") if isinstance(record.get("sensitiveWords"), list) else []
     client_meta_lines = [f"{key}: {value}" for key, value in client_meta.items()]
     header_lines = [f"{key}: {value}" for key, value in headers.items()]
     summary_lines = [f"{key}: {value}" for key, value in enrichment_summary.items()]
@@ -1271,6 +1443,7 @@ def build_notification_email_body(record: dict[str, Any]) -> str:
             f"Origin: {request_context.get('origin') or '-'}",
             f"Referer: {request_context.get('referer') or '-'}",
             f"Security Signals: {', '.join(suspicious_tags) if suspicious_tags else '-'}",
+            f"Sensitive Words: {', '.join(sensitive_words) if sensitive_words else '-'}",
             "",
             "[Enrichment Summary]",
             *(summary_lines or ["-"]),
@@ -1809,7 +1982,16 @@ async def admin_update_contact_settings(payload: AdminContactSettingsUpdateReque
 
 
 @app.post("/api/contact", response_model=ContactResponse)
-async def submit_contact(payload: ContactRequest, request: Request) -> ContactResponse:
+async def submit_contact(request: Request) -> ContactResponse:
+    raw_payload = getattr(request.state, "contact_payload", None)
+    if raw_payload is None:
+        raise HTTPException(status_code=400, detail="Missing contact payload.")
+
+    try:
+        payload = ContactRequest.model_validate(raw_payload)
+    except ValidationError as error:
+        raise HTTPException(status_code=422, detail=json.loads(error.json())) from error
+
     received_at = datetime.now(timezone.utc).isoformat()
     settings = read_contact_settings()
     client_meta = normalize_client_meta(payload)
@@ -1830,6 +2012,7 @@ async def submit_contact(payload: ContactRequest, request: Request) -> ContactRe
     dedupe_seed = "|".join([ip_hash, email, phone, content])
     dedupe_key = hashlib.sha256(dedupe_seed.encode("utf-8")).hexdigest()
     security_signals = detect_suspicious_patterns(content, name, email, phone)
+    sensitive_words = find_sensitive_words(name, email, phone, content)
 
     if email and not looks_like_email(email):
         raise HTTPException(status_code=422, detail="Email format is invalid.")
@@ -1839,6 +2022,18 @@ async def submit_contact(payload: ContactRequest, request: Request) -> ContactRe
 
     if payload.wantReply and not email and not phone:
         raise HTTPException(status_code=422, detail="Email or phone is required when reply is requested.")
+
+    if sensitive_words:
+        write_structured_contact_log(
+            "sensitive_content_blocked",
+            {
+                "ipHash": ip_hash,
+                "userAgent": user_agent,
+                "matchedWords": sensitive_words,
+                "requestContext": request_context,
+            },
+        )
+        raise HTTPException(status_code=422, detail="Message contains prohibited content.")
 
     allowed, rate_limit_reason = allow_contact_submission(identity_key, network_key, dedupe_key)
     if not allowed:
@@ -1872,6 +2067,7 @@ async def submit_contact(payload: ContactRequest, request: Request) -> ContactRe
         "ipHash": ip_hash,
         "userAgent": user_agent,
         "securitySignals": security_signals,
+        "sensitiveWords": sensitive_words,
         "sanitizedFields": build_sanitized_contact_snapshot(name, email, phone, content),
         "requestContext": request_context,
     }

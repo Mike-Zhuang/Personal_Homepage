@@ -149,12 +149,17 @@ sudo nginx -t && sudo systemctl reload nginx
 - 留言不会公开展示，运行时会优先写入 SQLite 留言库，并在 Admin Message Center 查看。
 - Admin 消息能力：列表、详情、标记已处理（不提供删除）。
 - Admin 页面提供 SMTP 设置面板，可在线调整发信参数并立即生效。
+- 留言入口默认启用 10KB 报文限制、严格 JSON 校验、敏感词 DFA 过滤和按真实 IP/指纹的令牌桶限流。
 
 ### 关键环境变量
 
 - `CONTACT_DB_PATH`: 留言 SQLite 数据库路径（生产环境推荐）
 - `CONTACT_MESSAGES_PATH`: 旧版 JSONL 留言文件路径，仅用于兼容迁移
+- `SENSITIVE_WORDS_PATH`: DFA 敏感词库文件路径
 - `CONTACT_SETTINGS_PATH`: 联系与 SMTP 在线配置文件路径
+- `CONTACT_MAX_BODY_BYTES`: 留言请求 JSON 最大体积
+- `CONTACT_MAX_JSON_DEPTH`: JSON 最大嵌套层级
+- `CONTACT_MAX_INTEGER_ABS`: JSON 数字允许的最大绝对值
 - `CONTACT_RATE_LIMIT_WINDOW_SECONDS`: 限流窗口秒数
 - `CONTACT_RATE_LIMIT_MAX_REQUESTS`: 窗口内最大提交次数
 - `TRUSTED_PROXY_IPS`: 可信反向代理 IP / 网段白名单
