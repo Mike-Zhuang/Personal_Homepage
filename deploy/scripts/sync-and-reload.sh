@@ -30,6 +30,20 @@ finish() {
 }
 trap finish EXIT
 
+reload_nginx() {
+  if systemctl is-active --quiet nginx 2>/dev/null; then
+    systemctl reload nginx
+    return 0
+  fi
+
+  if [[ -x /etc/init.d/nginx ]]; then
+    /etc/init.d/nginx reload
+    return 0
+  fi
+
+  echo "Warning: nginx reload skipped (service manager not detected)."
+}
+
 BRANCH="${BRANCH:-main}"
 SITE_ROOT="${SITE_ROOT:-/var/www/personal-homepage/frontend/dist}"
 API_SERVICE="${API_SERVICE:-personal-homepage-api}"
@@ -59,6 +73,6 @@ fi
 SITE_ROOT="$SITE_ROOT" RELOAD_NGINX=false HUGO_BIN="$HUGO_BIN" "$PUBLISH_SCRIPT"
 
 systemctl restart "$API_SERVICE"
-systemctl reload nginx
+reload_nginx
 
 curl -fsS "$API_HEALTH_URL" >/dev/null
