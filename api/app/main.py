@@ -137,9 +137,30 @@ CONTACT_PLACEHOLDER_MODE = parse_bool(os.getenv("CONTACT_PLACEHOLDER_MODE"), def
 CONTACT_MAX_BODY_BYTES = parse_int(os.getenv("CONTACT_MAX_BODY_BYTES"), default=10 * 1024)
 CONTACT_MAX_JSON_DEPTH = parse_int(os.getenv("CONTACT_MAX_JSON_DEPTH"), default=8)
 CONTACT_MAX_INTEGER_ABS = parse_int(os.getenv("CONTACT_MAX_INTEGER_ABS"), default=2147483647)
-CONTACT_RATE_LIMIT_WINDOW_SECONDS = parse_int(os.getenv("CONTACT_RATE_LIMIT_WINDOW_SECONDS"), default=60)
-CONTACT_RATE_LIMIT_MAX_REQUESTS = parse_int(os.getenv("CONTACT_RATE_LIMIT_MAX_REQUESTS"), default=2)
-CONTACT_RATE_LIMIT_BURST = parse_int(os.getenv("CONTACT_RATE_LIMIT_BURST"), default=2)
+CONTACT_IDENTITY_RATE_LIMIT_WINDOW_SECONDS = parse_int(
+    os.getenv("CONTACT_IDENTITY_RATE_LIMIT_WINDOW_SECONDS"),
+    default=60,
+)
+CONTACT_IDENTITY_RATE_LIMIT_MAX_REQUESTS = parse_int(
+    os.getenv("CONTACT_IDENTITY_RATE_LIMIT_MAX_REQUESTS"),
+    default=3,
+)
+CONTACT_IDENTITY_RATE_LIMIT_BURST = parse_int(
+    os.getenv("CONTACT_IDENTITY_RATE_LIMIT_BURST"),
+    default=3,
+)
+CONTACT_NETWORK_RATE_LIMIT_WINDOW_SECONDS = parse_int(
+    os.getenv("CONTACT_NETWORK_RATE_LIMIT_WINDOW_SECONDS"),
+    default=60,
+)
+CONTACT_NETWORK_RATE_LIMIT_MAX_REQUESTS = parse_int(
+    os.getenv("CONTACT_NETWORK_RATE_LIMIT_MAX_REQUESTS"),
+    default=60,
+)
+CONTACT_NETWORK_RATE_LIMIT_BURST = parse_int(
+    os.getenv("CONTACT_NETWORK_RATE_LIMIT_BURST"),
+    default=60,
+)
 CONTACT_DUPLICATE_WINDOW_SECONDS = parse_int(os.getenv("CONTACT_DUPLICATE_WINDOW_SECONDS"), default=120)
 CONTACT_IP_HASH_SALT = os.getenv("CONTACT_IP_HASH_SALT", "")
 CONTACT_ERROR_LOG_PATH = Path(
@@ -1250,8 +1271,14 @@ def allow_rate_limit_key(key: str, capacity: float, refill_per_second: float, no
 
 def allow_contact_submission(identity_key: str, network_key: str, dedupe_key: str) -> tuple[bool, str]:
     now_ts = time.time()
-    refill_per_second = CONTACT_RATE_LIMIT_MAX_REQUESTS / max(CONTACT_RATE_LIMIT_WINDOW_SECONDS, 1)
-    network_capacity = max(float(CONTACT_RATE_LIMIT_MAX_REQUESTS), float(CONTACT_RATE_LIMIT_BURST) + 2.0)
+    identity_refill_per_second = CONTACT_IDENTITY_RATE_LIMIT_MAX_REQUESTS / max(
+        CONTACT_IDENTITY_RATE_LIMIT_WINDOW_SECONDS,
+        1,
+    )
+    network_refill_per_second = CONTACT_NETWORK_RATE_LIMIT_MAX_REQUESTS / max(
+        CONTACT_NETWORK_RATE_LIMIT_WINDOW_SECONDS,
+        1,
+    )
 
     with RATE_LIMIT_LOCK:
         expired_keys = [
@@ -1265,10 +1292,20 @@ def allow_contact_submission(identity_key: str, network_key: str, dedupe_key: st
         if duplicate_at and now_ts - duplicate_at <= CONTACT_DUPLICATE_WINDOW_SECONDS:
             return False, "duplicate"
 
-        if not allow_rate_limit_key(identity_key, float(CONTACT_RATE_LIMIT_BURST), refill_per_second, now_ts):
+        if not allow_rate_limit_key(
+            identity_key,
+            float(CONTACT_IDENTITY_RATE_LIMIT_BURST),
+            identity_refill_per_second,
+            now_ts,
+        ):
             return False, "identity"
 
-        if not allow_rate_limit_key(network_key, network_capacity, refill_per_second, now_ts):
+        if not allow_rate_limit_key(
+            network_key,
+            float(CONTACT_NETWORK_RATE_LIMIT_BURST),
+            network_refill_per_second,
+            now_ts,
+        ):
             return False, "network"
 
         RECENT_SUBMISSIONS[dedupe_key] = now_ts

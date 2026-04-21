@@ -149,7 +149,7 @@ sudo nginx -t && sudo systemctl reload nginx
 - 留言不会公开展示，运行时会优先写入 SQLite 留言库，并在 Admin Message Center 查看。
 - Admin 消息能力：列表、详情、标记已处理（不提供删除）。
 - Admin 页面提供 SMTP 设置面板，可在线调整发信参数并立即生效。
-- 留言入口默认启用 10KB 报文限制、严格 JSON 校验、敏感词 DFA 过滤和按真实 IP/指纹的令牌桶限流。
+- 留言入口默认启用 10KB 报文限制、严格 JSON 校验、敏感词 DFA 过滤，以及“双桶限流”：身份桶按真实 IP + 指纹限制，网络桶按真实 IP 总量限制。
 
 ### 关键环境变量
 
@@ -160,8 +160,12 @@ sudo nginx -t && sudo systemctl reload nginx
 - `CONTACT_MAX_BODY_BYTES`: 留言请求 JSON 最大体积
 - `CONTACT_MAX_JSON_DEPTH`: JSON 最大嵌套层级
 - `CONTACT_MAX_INTEGER_ABS`: JSON 数字允许的最大绝对值
-- `CONTACT_RATE_LIMIT_WINDOW_SECONDS`: 限流窗口秒数
-- `CONTACT_RATE_LIMIT_MAX_REQUESTS`: 窗口内最大提交次数
+- `CONTACT_IDENTITY_RATE_LIMIT_WINDOW_SECONDS`: 身份桶窗口秒数
+- `CONTACT_IDENTITY_RATE_LIMIT_MAX_REQUESTS`: 同一真实 IP + 指纹的窗口内最大提交次数
+- `CONTACT_IDENTITY_RATE_LIMIT_BURST`: 身份桶容量
+- `CONTACT_NETWORK_RATE_LIMIT_WINDOW_SECONDS`: 网络桶窗口秒数
+- `CONTACT_NETWORK_RATE_LIMIT_MAX_REQUESTS`: 同一真实 IP 总量的窗口内最大提交次数
+- `CONTACT_NETWORK_RATE_LIMIT_BURST`: 网络桶容量
 - `TRUSTED_PROXY_IPS`: 可信反向代理 IP / 网段白名单
 - `CONTACT_ENABLE_GEO_LOOKUP`: 是否启用基于真实 IP 的 GeoIP 外部查询
 - `CONTACT_IP_HASH_SALT`: IP 哈希盐值
