@@ -66,8 +66,62 @@ The admin UI does not need special endpoint support for these fields because it 
 - `POST /api/admin/rollback/{section}/{backup_name}`
 - `POST /api/admin/publish`
 - `GET /api/admin/publish/status`
+- `GET /api/admin/messages?status=all|new|processed&limit=60`
+- `GET /api/admin/messages/{message_id}`
+- `POST /api/admin/messages/{message_id}/process`
+- `GET /api/admin/contact-settings`
+- `PUT /api/admin/contact-settings`
 
 All endpoints require `X-Admin-API-Key`.
+
+## Message Center Contract
+
+Message records are runtime-only data and are not stored in git-managed `data/` files.
+
+Record shape:
+
+```json
+{
+  "id": "msg_20260421134501_ab12cd34",
+  "createdAt": "2026-04-21T13:45:01.123456+00:00",
+  "status": "new",
+  "processedAt": null,
+  "name": "optional",
+  "email": "optional",
+  "phone": "optional",
+  "wantReply": true,
+  "content": "required message text",
+  "ipHash": "hashed-client-ip",
+  "userAgent": "optional user agent"
+}
+```
+
+Rules:
+
+- Public site only supports submit (`POST /api/contact`), no public read endpoint.
+- Message content is required; name/email/phone/wantReply are optional.
+- Admin supports list/detail/mark-processed only. Delete is intentionally disabled.
+
+## SMTP Settings Contract
+
+`GET /api/admin/contact-settings` returns current contact delivery settings with masked password state:
+
+```json
+{
+  "contactPlaceholderMode": false,
+  "smtpHost": "smtp.exmail.qq.com",
+  "smtpPort": 465,
+  "smtpUseSsl": true,
+  "smtpUseStarttls": false,
+  "smtpUser": "ops@example.com",
+  "smtpPassConfigured": true,
+  "mailFrom": "ops@example.com",
+  "mailTo": "mike@mikezhuang.cn",
+  "mailSubjectPrefix": "[Personal Homepage]"
+}
+```
+
+`PUT /api/admin/contact-settings` accepts full settings update. `smtpPass` is optional; when omitted or blank, existing password is kept unchanged.
 
 ## Write Safety Rules
 

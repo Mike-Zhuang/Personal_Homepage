@@ -20,6 +20,21 @@
     var API_PREFIX = resolveApiPrefix();
     var POLL_TIMER = null;
 
+    function createDefaultContactSettings() {
+        return {
+            contactPlaceholderMode: true,
+            smtpHost: "",
+            smtpPort: 465,
+            smtpUseSsl: true,
+            smtpUseStarttls: false,
+            smtpUser: "",
+            smtpPassConfigured: false,
+            mailFrom: "",
+            mailTo: "",
+            mailSubjectPrefix: "[Personal Homepage]"
+        };
+    }
+
     var state = {
         apiKey: "",
         connected: false,
@@ -31,6 +46,12 @@
         contentText: "{}",
         editorMode: "form",
         backups: [],
+        messageFilter: "all",
+        messageTotal: 0,
+        messages: [],
+        activeMessageId: "",
+        activeMessageDetail: null,
+        contactSettings: createDefaultContactSettings(),
         statusText: "Please enter ADMIN_API_KEY to connect.",
         errorText: "",
         publish: {
@@ -241,6 +262,151 @@
         state.backups = Array.isArray(backupResult.backups) ? backupResult.backups : [];
     }
 
+    async function loadMessages(nextFilter) {
+        var targetFilter = nextFilter || state.messageFilter || "all";
+        var result = await requestAdmin(
+            "/messages?status=" + encodeURIComponent(targetFilter) + "&limit=120"
+        );
+
+        state.messageFilter = targetFilter;
+        state.messages = Array.isArray(result.messages) ? result.messages : [];
+        state.messageTotal = Number(result.total || 0);
+
+        if (state.messages.length === 0) {
+            state.activeMessageId = "";
+            state.activeMessageDetail = null;
+            return;
+        }
+
+        if (!state.activeMessageId || !state.messages.some(function (item) { return item.id === state.activeMessageId; })) {
+            state.activeMessageId = state.messages[0].id;
+        }
+
+        var detailResult = await requestAdmin("/messages/" + encodeURIComponent(state.activeMessageId));
+        state.activeMessageDetail = detailResult.message || null;
+    }
+
+    async function selectMessage(messageId) {
+        if (!messageId) {
+            return;
+        }
+
+        setBusy(true);
+        try {
+            var detailResult = await requestAdmin("/messages/" + encodeURIComponent(messageId));
+            state.activeMessageId = messageId;
+            state.activeMessageDetail = detailResult.message || null;
+            setStatus("Loaded message " + messageId + ".");
+        } catch (error) {
+            setError(error.message || "Unable to load message detail.");
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function refreshMessages(nextFilter) {
+        setBusy(true);
+        try {
+            await loadMessages(nextFilter || state.messageFilter || "all");
+            setStatus("Messages refreshed.");
+        } catch (error) {
+            setError(error.message || "Unable to refresh messages.");
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function markMessageProcessed() {
+        if (!state.activeMessageId) {
+            return;
+        }
+
+        setBusy(true);
+        try {
+            await requestAdmin("/messages/" + encodeURIComponent(state.activeMessageId) + "/process", {
+                method: "POST"
+            });
+
+            await loadMessages(state.messageFilter);
+            setStatus("Message marked as processed.");
+        } catch (error) {
+            setError(error.message || "Unable to update message status.");
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function loadContactSettings() {
+        var result = await requestAdmin("/contact-settings");
+        state.contactSettings = Object.assign(createDefaultContactSettings(), result || {});
+    }
+
+    function readContactSettingsForm() {
+        var smtpHost = document.getElementById("smtp-host-input");
+        var smtpPort = document.getElementById("smtp-port-input");
+        var smtpUseSsl = document.getElementById("smtp-use-ssl-input");
+        var smtpUseStarttls = document.getElementById("smtp-use-starttls-input");
+        var smtpUser = document.getElementById("smtp-user-input");
+        var smtpPass = document.getElementById("smtp-pass-input");
+        var mailFrom = document.getElementById("mail-from-input");
+        var mailTo = document.getElementById("mail-to-input");
+        var subjectPrefix = document.getElementById("mail-subject-prefix-input");
+        var placeholderMode = document.getElementById("contact-placeholder-mode-input");
+
+        var parsedPort = Number(smtpPort ? smtpPort.value : 465);
+        var safePort = Number.isFinite(parsedPort) ? parsedPort : 465;
+
+        return {
+            contactPlaceholderMode: placeholderMode ? Boolean(placeholderMode.checked) : true,
+            smtpHost: smtpHost ? smtpHost.value.trim() : "",
+            smtpPort: safePort,
+            smtpUseSsl: smtpUseSsl ? Boolean(smtpUseSsl.checked) : true,
+            smtpUseStarttls: smtpUseStarttls ? Boolean(smtpUseStarttls.checked) : false,
+            smtpUser: smtpUser ? smtpUser.value.trim() : "",
+            smtpPass: smtpPass ? smtpPass.value : "",
+            mailFrom: mailFrom ? mailFrom.value.trim() : "",
+            mailTo: mailTo ? mailTo.value.trim() : "",
+            mailSubjectPrefix: subjectPrefix ? subjectPrefix.value.trim() : "[Personal Homepage]"
+        };
+    }
+
+    async function saveContactSettings() {
+        var payload = readContactSettingsForm();
+
+        if (payload.smtpPort < 1 || payload.smtpPort > 65535) {
+            setError("SMTP port must be between 1 and 65535.");
+            return;
+        }
+
+        // SMTPS 和 STARTTLS 不建议同时开启，优先保留 SMTPS。
+        if (payload.smtpUseSsl) {
+            payload.smtpUseStarttls = false;
+        }
+
+        if (!payload.smtpPass) {
+            delete payload.smtpPass;
+        }
+
+        setBusy(true);
+        try {
+            var result = await requestAdmin("/contact-settings", {
+                method: "PUT",
+                body: JSON.stringify(payload)
+            });
+
+            state.contactSettings = Object.assign(createDefaultContactSettings(), result || {});
+            var passInput = document.getElementById("smtp-pass-input");
+            if (passInput) {
+                passInput.value = "";
+            }
+            setStatus("SMTP settings saved.");
+        } catch (error) {
+            setError(error.message || "Unable to save SMTP settings.");
+        } finally {
+            setBusy(false);
+        }
+    }
+
     async function connectWithKey() {
         var input = document.getElementById("api-key-input");
         var nextKey = input ? input.value.trim() : "";
@@ -255,6 +421,8 @@
 
         try {
             await loadSections();
+            await loadMessages("all");
+            await loadContactSettings();
             state.connected = true;
             setStatus("Connected.");
         } catch (error) {
@@ -277,6 +445,12 @@
         state.contentText = "{}";
         state.editorMode = "form";
         state.backups = [];
+        state.messageFilter = "all";
+        state.messageTotal = 0;
+        state.messages = [];
+        state.activeMessageId = "";
+        state.activeMessageDetail = null;
+        state.contactSettings = createDefaultContactSettings();
         state.publish = {
             status: "idle",
             startedAt: null,
@@ -543,6 +717,36 @@
             });
         }
 
+        var messagesRefreshButton = document.getElementById("messages-refresh-button");
+        if (messagesRefreshButton) {
+            messagesRefreshButton.addEventListener("click", function () {
+                void refreshMessages();
+            });
+        }
+
+        var smtpSaveButton = document.getElementById("smtp-save-button");
+        if (smtpSaveButton) {
+            smtpSaveButton.addEventListener("click", function () {
+                void saveContactSettings();
+            });
+        }
+
+        var smtpSslInput = document.getElementById("smtp-use-ssl-input");
+        var smtpStarttlsInput = document.getElementById("smtp-use-starttls-input");
+        if (smtpSslInput && smtpStarttlsInput) {
+            smtpSslInput.addEventListener("change", function () {
+                if (smtpSslInput.checked) {
+                    smtpStarttlsInput.checked = false;
+                }
+            });
+
+            smtpStarttlsInput.addEventListener("change", function () {
+                if (smtpStarttlsInput.checked) {
+                    smtpSslInput.checked = false;
+                }
+            });
+        }
+
         var formModeButton = document.getElementById("editor-mode-form");
         if (formModeButton) {
             formModeButton.addEventListener("click", function () {
@@ -615,6 +819,29 @@
                     event.preventDefault();
                     void connectWithKey();
                 }
+            });
+        }
+
+        var messageFilterButtons = document.querySelectorAll("[data-message-filter]");
+        messageFilterButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                var filter = button.getAttribute("data-message-filter") || "all";
+                void refreshMessages(filter);
+            });
+        });
+
+        var messageButtons = document.querySelectorAll("[data-message-id]");
+        messageButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                var messageId = button.getAttribute("data-message-id") || "";
+                void selectMessage(messageId);
+            });
+        });
+
+        var processButton = document.getElementById("message-process-button");
+        if (processButton) {
+            processButton.addEventListener("click", function () {
+                void markMessageProcessed();
             });
         }
     }
@@ -808,6 +1035,125 @@
         return "<div class=\"publish-logs\">" + blocks.join("") + "</div>";
     }
 
+    function renderMessageStatusChip(status) {
+        var normalized = String(status || "new");
+        var statusClass = normalized === "processed" ? "processed" : "new";
+        return "<span class=\"message-chip " + statusClass + "\">" + escapeHtml(normalized) + "</span>";
+    }
+
+    function renderContactSettingsBlock() {
+        var settings = Object.assign(createDefaultContactSettings(), state.contactSettings || {});
+        var passConfiguredText = settings.smtpPassConfigured ? "Configured" : "Not configured";
+
+        return ""
+            + "<section class=\"smtp-panel\">"
+            + "<div class=\"smtp-panel-head\">"
+            + "<h3 class=\"panel-subhead\">SMTP Settings</h3>"
+            + "<span class=\"smtp-pass-indicator\">Password: " + escapeHtml(passConfiguredText) + "</span>"
+            + "</div>"
+            + "<p class=\"admin-subtitle\">You can update mail delivery settings directly here. Leave password blank to keep current secret.</p>"
+            + "<div class=\"smtp-grid\">"
+            + "<label class=\"field\"><span class=\"field-label\">SMTP Host</span><input id=\"smtp-host-input\" type=\"text\" value=\"" + escapeHtml(settings.smtpHost || "") + "\" " + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"field\"><span class=\"field-label\">SMTP Port</span><input id=\"smtp-port-input\" type=\"number\" min=\"1\" max=\"65535\" value=\"" + escapeHtml(String(settings.smtpPort || 465)) + "\" " + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"field\"><span class=\"field-label\">SMTP User</span><input id=\"smtp-user-input\" type=\"text\" value=\"" + escapeHtml(settings.smtpUser || "") + "\" " + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"field\"><span class=\"field-label\">SMTP Password</span><input id=\"smtp-pass-input\" type=\"password\" autocomplete=\"new-password\" placeholder=\"Leave blank to keep\" " + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"field\"><span class=\"field-label\">Mail From</span><input id=\"mail-from-input\" type=\"text\" value=\"" + escapeHtml(settings.mailFrom || "") + "\" " + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"field\"><span class=\"field-label\">Mail To</span><input id=\"mail-to-input\" type=\"text\" value=\"" + escapeHtml(settings.mailTo || "") + "\" " + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"field smtp-span-2\"><span class=\"field-label\">Subject Prefix</span><input id=\"mail-subject-prefix-input\" type=\"text\" value=\"" + escapeHtml(settings.mailSubjectPrefix || "") + "\" " + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"checkbox-field\"><span class=\"field-label\">Use SSL (465)</span><input id=\"smtp-use-ssl-input\" type=\"checkbox\" " + (settings.smtpUseSsl ? "checked " : "") + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"checkbox-field\"><span class=\"field-label\">Use STARTTLS</span><input id=\"smtp-use-starttls-input\" type=\"checkbox\" " + (settings.smtpUseStarttls ? "checked " : "") + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"checkbox-field smtp-span-2\"><span class=\"field-label\">Placeholder Mode (disable real sending)</span><input id=\"contact-placeholder-mode-input\" type=\"checkbox\" " + (settings.contactPlaceholderMode ? "checked " : "") + (state.busy ? "disabled" : "") + "></label>"
+            + "</div>"
+            + "<div class=\"smtp-actions\">"
+            + "<button id=\"smtp-save-button\" class=\"secondary\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Save SMTP Settings</button>"
+            + "</div>"
+            + "</section>";
+    }
+
+    function renderMessagesBlock() {
+        var filter = state.messageFilter || "all";
+        var filterButtons = [
+            { key: "all", label: "All" },
+            { key: "new", label: "New" },
+            { key: "processed", label: "Processed" }
+        ].map(function (item) {
+            var klass = filter === item.key ? "active" : "ghost";
+            return ""
+                + "<button type=\"button\" class=\"" + klass + "\" data-message-filter=\"" + escapeHtml(item.key) + "\" "
+                + (state.busy ? "disabled" : "")
+                + ">"
+                + escapeHtml(item.label)
+                + "</button>";
+        }).join("");
+
+        var listHtml = "";
+        if (state.messages.length === 0) {
+            listHtml = "<p class=\"admin-subtitle\">No messages in this filter.</p>";
+        } else {
+            listHtml = state.messages.map(function (item) {
+                var activeClass = item.id === state.activeMessageId ? "active" : "";
+                return ""
+                    + "<button type=\"button\" class=\"message-list-item " + activeClass + "\" data-message-id=\"" + escapeHtml(item.id) + "\" "
+                    + (state.busy ? "disabled" : "")
+                    + ">"
+                    + "<div class=\"message-list-head\">"
+                    + "<strong>" + escapeHtml(formatTime(item.createdAt)) + "</strong>"
+                    + renderMessageStatusChip(item.status)
+                    + "</div>"
+                    + "<p>" + escapeHtml(item.preview || "-") + "</p>"
+                    + "<p class=\"message-list-meta\">"
+                    + "Reply: " + escapeHtml(item.wantReply ? "Yes" : "No")
+                    + " | "
+                    + "Email: " + escapeHtml(item.email || "-")
+                    + "</p>"
+                    + "</button>";
+            }).join("");
+        }
+
+        var detailHtml = "<p class=\"admin-subtitle\">Select a message to view details.</p>";
+        var processButtonHtml = "";
+
+        if (state.activeMessageDetail) {
+            detailHtml = ""
+                + "<div class=\"message-detail-grid\">"
+                + "<p><strong>ID:</strong> " + escapeHtml(state.activeMessageDetail.id || "-") + "</p>"
+                + "<p><strong>Time:</strong> " + escapeHtml(formatTime(state.activeMessageDetail.createdAt)) + "</p>"
+                + "<p><strong>Name:</strong> " + escapeHtml(state.activeMessageDetail.name || "-") + "</p>"
+                + "<p><strong>Email:</strong> " + escapeHtml(state.activeMessageDetail.email || "-") + "</p>"
+                + "<p><strong>Phone:</strong> " + escapeHtml(state.activeMessageDetail.phone || "-") + "</p>"
+                + "<p><strong>Want Reply:</strong> " + escapeHtml(state.activeMessageDetail.wantReply ? "Yes" : "No") + "</p>"
+                + "<p><strong>Status:</strong> " + escapeHtml(state.activeMessageDetail.status || "new") + "</p>"
+                + "<p><strong>Processed:</strong> " + escapeHtml(formatTime(state.activeMessageDetail.processedAt)) + "</p>"
+                + "<p><strong>IP Hash:</strong> " + escapeHtml(state.activeMessageDetail.ipHash || "-") + "</p>"
+                + "</div>"
+                + "<h4 class=\"panel-subhead message-content-title\">Message</h4>"
+                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(state.activeMessageDetail.content || "") + "</pre>";
+
+            if (state.activeMessageDetail.status !== "processed") {
+                processButtonHtml = ""
+                    + "<button id=\"message-process-button\" class=\"secondary\" type=\"button\" "
+                    + (state.busy ? "disabled" : "")
+                    + ">Mark as processed</button>";
+            }
+        }
+
+        return ""
+            + "<section class=\"message-panel\">"
+            + "<div class=\"message-panel-head\">"
+            + "<h3 class=\"panel-subhead\">Messages (" + escapeHtml(String(state.messageTotal || 0)) + ")</h3>"
+            + "<button id=\"messages-refresh-button\" class=\"ghost\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Refresh</button>"
+            + "</div>"
+            + "<div class=\"message-filter-row\">" + filterButtons + "</div>"
+            + "<div class=\"message-layout\">"
+            + "<div class=\"message-list\">" + listHtml + "</div>"
+            + "<div class=\"message-detail\">"
+            + processButtonHtml
+            + detailHtml
+            + "</div>"
+            + "</div>"
+            + "</section>";
+    }
+
     function renderAdminView(root) {
         var sectionsHtml = state.sections.map(function (item) {
             var activeClass = item.key === state.activeSection ? "active" : "ghost";
@@ -834,6 +1180,8 @@
 
         var publishStatusBlock = renderPublishStatusBlock();
         var publishLogsBlock = renderPublishLogsBlock();
+        var messagesBlock = renderMessagesBlock();
+        var contactSettingsBlock = renderContactSettingsBlock();
 
         var editorBody = "";
         if (state.editorMode === "json") {
@@ -886,6 +1234,8 @@
             + "</div>"
             + publishStatusBlock
             + publishLogsBlock
+            + messagesBlock
+            + contactSettingsBlock
             + editorBody
             + "</main>"
             + "</div>"

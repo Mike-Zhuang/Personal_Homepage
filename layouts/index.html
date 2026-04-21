@@ -249,6 +249,44 @@
             {{ else }}
             <p class="contact-note">{{ $site.resume.label }} is intentionally private for now.</p>
             {{ end }}
+
+            <form class="contact-form" id="contact-form" novalidate>
+                <p class="contact-form-title">Leave a private message</p>
+                <p class="contact-note">Only message content is required. Your message is private and visible only in admin.</p>
+
+                <label class="contact-field" for="contact-content">
+                    <span>Message *</span>
+                    <textarea id="contact-content" name="content" required maxlength="2000" placeholder="Share context, goals, or collaboration ideas."></textarea>
+                </label>
+
+                <label class="contact-field" for="contact-name">
+                    <span>Name</span>
+                    <input id="contact-name" name="name" type="text" maxlength="80" autocomplete="name" placeholder="Optional">
+                </label>
+
+                <label class="contact-field" for="contact-email">
+                    <span>Email</span>
+                    <input id="contact-email" name="email" type="email" maxlength="120" autocomplete="email" placeholder="Optional">
+                </label>
+
+                <label class="contact-field" for="contact-phone">
+                    <span>Phone</span>
+                    <input id="contact-phone" name="phone" type="tel" maxlength="32" autocomplete="tel" placeholder="Optional">
+                </label>
+
+                <label class="contact-checkbox" for="contact-want-reply">
+                    <input id="contact-want-reply" name="wantReply" type="checkbox" value="1">
+                    <span>I hope to receive a reply</span>
+                </label>
+
+                <label class="contact-field contact-honeypot" for="contact-website" aria-hidden="true">
+                    <span>Website</span>
+                    <input id="contact-website" name="website" type="text" tabindex="-1" autocomplete="off">
+                </label>
+
+                <button class="button primary wide" type="submit" id="contact-submit">Send Message</button>
+                <p class="contact-form-status" id="contact-form-status" role="status" aria-live="polite"></p>
+            </form>
         </div>
     </div>
 </section>
