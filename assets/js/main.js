@@ -141,9 +141,88 @@
         var websiteInput = document.getElementById("contact-website");
         var submitButton = document.getElementById("contact-submit");
         var statusElement = document.getElementById("contact-form-status");
+        var pendingRequest = false;
+
+        function looksLikeEmail(value) {
+            if (!value || value.length > 254 || value.indexOf("..") >= 0) {
+                return false;
+            }
+
+            return /^[A-Za-z0-9](?:[A-Za-z0-9._%+\-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)+$/.test(value);
+        }
+
+        function looksLikePhone(value) {
+            if (!value) {
+                return false;
+            }
+
+            var compact = value.replace(/[\s()\-]+/g, "");
+            var digitCount = (compact.match(/\d/g) || []).length;
+
+            if ((!compact.startsWith("+") && /\D/.test(compact)) || digitCount < 6 || digitCount > 20) {
+                return false;
+            }
+
+            return /^\+?[0-9][0-9()\-\s]{5,31}$/.test(value);
+        }
+
+        function hashText(value) {
+            var hash = 2166136261;
+            for (var index = 0; index < value.length; index += 1) {
+                hash ^= value.charCodeAt(index);
+                hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+            }
+
+            return (hash >>> 0).toString(16);
+        }
+
+        function buildClientMeta() {
+            var timezone = "";
+            try {
+                timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+            } catch (_error) {
+                timezone = "";
+            }
+
+            var languageList = Array.isArray(navigator.languages) ? navigator.languages.join(", ") : "";
+            var fingerprintSource = [
+                timezone,
+                navigator.language || "",
+                languageList,
+                String(window.screen && window.screen.width || 0) + "x" + String(window.screen && window.screen.height || 0),
+                String(window.innerWidth || 0) + "x" + String(window.innerHeight || 0),
+                navigator.platform || "",
+                String(navigator.maxTouchPoints || 0),
+                String(navigator.hardwareConcurrency || 0),
+                String(navigator.deviceMemory || 0)
+            ].join("|");
+
+            return {
+                timezone: timezone,
+                language: navigator.language || "",
+                languages: languageList,
+                screenResolution: String(window.screen && window.screen.width || 0) + "x" + String(window.screen && window.screen.height || 0),
+                viewportSize: String(window.innerWidth || 0) + "x" + String(window.innerHeight || 0),
+                refererPath: window.location.pathname || "",
+                pageUrl: window.location.href || "",
+                referrer: document.referrer || "",
+                platform: navigator.platform || "",
+                cookieEnabled: Boolean(navigator.cookieEnabled),
+                touchPoints: navigator.maxTouchPoints || 0,
+                hardwareConcurrency: navigator.hardwareConcurrency || 0,
+                deviceMemory: navigator.deviceMemory || 0,
+                colorScheme: window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+                fingerprint: hashText(fingerprintSource)
+            };
+        }
 
         form.addEventListener("submit", function (event) {
             event.preventDefault();
+
+            if (pendingRequest) {
+                setContactStatus(statusElement, "Message is already sending. Please wait.", "error");
+                return;
+            }
 
             var content = contentInput ? contentInput.value.trim() : "";
             if (!content) {
@@ -151,18 +230,50 @@
                 return;
             }
 
+            if (content.length > 2000) {
+                setContactStatus(statusElement, "Message must be 2000 characters or fewer.", "error");
+                return;
+            }
+
+            var nameValue = nameInput ? nameInput.value.trim() : "";
+            var emailValue = emailInput ? emailInput.value.trim() : "";
+            var phoneValue = phoneInput ? phoneInput.value.trim() : "";
+            var wantReply = wantReplyInput ? Boolean(wantReplyInput.checked) : false;
+
+            if (nameValue && nameValue.length > 80) {
+                setContactStatus(statusElement, "Name must be 80 characters or fewer.", "error");
+                return;
+            }
+
+            if (emailValue && !looksLikeEmail(emailValue)) {
+                setContactStatus(statusElement, "Email format is invalid.", "error");
+                return;
+            }
+
+            if (phoneValue && !looksLikePhone(phoneValue)) {
+                setContactStatus(statusElement, "Phone format is invalid.", "error");
+                return;
+            }
+
+            if (wantReply && !emailValue && !phoneValue) {
+                setContactStatus(statusElement, "Email or phone is required if you want a reply.", "error");
+                return;
+            }
+
             var payload = {
                 content: content,
-                name: nameInput ? nameInput.value.trim() : "",
-                email: emailInput ? emailInput.value.trim() : "",
-                phone: phoneInput ? phoneInput.value.trim() : "",
-                wantReply: wantReplyInput ? Boolean(wantReplyInput.checked) : false,
-                website: websiteInput ? websiteInput.value.trim() : ""
+                name: nameValue,
+                email: emailValue,
+                phone: phoneValue,
+                wantReply: wantReply,
+                website: websiteInput ? websiteInput.value.trim() : "",
+                clientMeta: buildClientMeta()
             };
 
             if (submitButton) {
                 submitButton.disabled = true;
             }
+            pendingRequest = true;
             setContactStatus(statusElement, "Sending...", "");
 
             fetch(buildApiUrl("/api/contact"), {
@@ -216,6 +327,7 @@
                     setContactStatus(statusElement, error.message || "Unable to send message right now.", "error");
                 })
                 .finally(function () {
+                    pendingRequest = false;
                     if (submitButton) {
                         submitButton.disabled = false;
                     }

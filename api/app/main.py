@@ -7,11 +7,11 @@ import subprocess
 import tempfile
 import hashlib
 import json
+import logging
 import re
 import smtplib
 import ssl
 import time
-from collections import defaultdict, deque
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
@@ -67,8 +67,18 @@ MESSAGE_WRITE_LOCK = Lock()
 CONTACT_SETTINGS_LOCK = Lock()
 PUBLISH_STATE_LOCK = Lock()
 RATE_LIMIT_LOCK = Lock()
-RATE_LIMIT_BUCKETS: dict[str, deque[float]] = defaultdict(deque)
-PHONE_PATTERN = re.compile(r"^[0-9+\-\s()]{6,32}$")
+RATE_LIMIT_BUCKETS: dict[str, dict[str, float]] = {}
+RECENT_SUBMISSIONS: dict[str, float] = {}
+PHONE_PATTERN = re.compile(r"^\+?[0-9][0-9()\-\s]{5,31}$")
+EMAIL_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._%+\-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)+$")
+SUSPICIOUS_PATTERN_RULES = {
+    "xssScriptTag": re.compile(r"<\s*script\b", re.IGNORECASE),
+    "xssInlineHandler": re.compile(r"\bon\w+\s*=", re.IGNORECASE),
+    "xssJavascriptUrl": re.compile(r"javascript\s*:", re.IGNORECASE),
+    "sqlBooleanBypass": re.compile(r"(?:'|\")\s*(?:or|and)\s+(?:'?\d+'?\s*=\s*'?\d+'?|true|false)", re.IGNORECASE),
+    "sqlComment": re.compile(r"(?:--|#|/\*)"),
+    "sqlDangerousKeyword": re.compile(r"\b(?:drop|truncate|union|sleep|benchmark|insert|delete|update)\b", re.IGNORECASE),
+}
 PUBLISH_STATE: dict[str, str | None] = {
     "status": "idle",
     "startedAt": None,
@@ -111,7 +121,12 @@ CONTACT_SETTINGS_PATH = Path(os.getenv("CONTACT_SETTINGS_PATH", str(DEFAULT_CONT
 CONTACT_PLACEHOLDER_MODE = parse_bool(os.getenv("CONTACT_PLACEHOLDER_MODE"), default=True)
 CONTACT_RATE_LIMIT_WINDOW_SECONDS = parse_int(os.getenv("CONTACT_RATE_LIMIT_WINDOW_SECONDS"), default=300)
 CONTACT_RATE_LIMIT_MAX_REQUESTS = parse_int(os.getenv("CONTACT_RATE_LIMIT_MAX_REQUESTS"), default=6)
+CONTACT_RATE_LIMIT_BURST = parse_int(os.getenv("CONTACT_RATE_LIMIT_BURST"), default=4)
+CONTACT_DUPLICATE_WINDOW_SECONDS = parse_int(os.getenv("CONTACT_DUPLICATE_WINDOW_SECONDS"), default=120)
 CONTACT_IP_HASH_SALT = os.getenv("CONTACT_IP_HASH_SALT", "")
+CONTACT_ERROR_LOG_PATH = Path(
+    os.getenv("CONTACT_ERROR_LOG_PATH", str(PROJECT_ROOT / "runtime" / "contact-errors.jsonl"))
+).expanduser()
 ALLOW_ORIGINS = parse_origins(os.getenv("CORS_ALLOW_ORIGINS"))
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "").strip()
 DATA_ROOT = Path(os.getenv("DATA_ROOT", str(DEFAULT_DATA_ROOT))).expanduser()
@@ -145,6 +160,10 @@ CONTACT_SETTINGS_KEYS = {
 if not ALLOW_ORIGINS:
     ALLOW_ORIGINS = ["http://127.0.0.1:1313", "http://localhost:1313"]
 
+logger = logging.getLogger("personal-homepage")
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO)
+
 app = FastAPI(title="Personal Homepage API", version="0.1.0")
 
 app.add_middleware(
@@ -154,6 +173,26 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):  # type: ignore[override]
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    return response
 
 
 class ContactRequest(BaseModel):
@@ -166,6 +205,8 @@ class ContactRequest(BaseModel):
     message: str | None = Field(default=None, max_length=2000)
     # 蜜罐字段：真实用户页面不会填写
     website: str | None = Field(default=None, max_length=120)
+    # 前端采集的访问上下文，尽量帮助区分真实访客与自动化流量
+    clientMeta: dict[str, Any] | None = None
 
 
 class ContactResponse(BaseModel):
@@ -273,15 +314,48 @@ class AdminContactSettingsUpdateRequest(BaseModel):
 
 
 def looks_like_email(value: str) -> bool:
-    return "@" in value and "." in value.split("@")[-1]
+    if len(value) > 254 or value.count("@") != 1 or ".." in value:
+        return False
+
+    local_part, domain_part = value.rsplit("@", 1)
+    if not local_part or not domain_part:
+        return False
+
+    if local_part.startswith(".") or local_part.endswith("."):
+        return False
+
+    if domain_part.startswith(".") or domain_part.endswith(".") or "." not in domain_part:
+        return False
+
+    return bool(EMAIL_PATTERN.fullmatch(value))
 
 
 def looks_like_phone(value: str) -> bool:
-    return bool(PHONE_PATTERN.fullmatch(value))
+    compact = re.sub(r"[\s()\-]+", "", value)
+    if not compact.startswith("+") and not compact.isdigit():
+        return False
+
+    digit_count = sum(char.isdigit() for char in compact)
+    return bool(PHONE_PATTERN.fullmatch(value)) and 6 <= digit_count <= 20
 
 
 def sanitize_for_log(value: str) -> str:
-    return " ".join(value.strip().split())
+    collapsed = re.sub(r"[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]+", " ", value)
+    return " ".join(collapsed.strip().split())
+
+
+def sanitize_multiline_text(value: str | None, limit: int) -> str:
+    if value is None:
+        return ""
+
+    normalized = value.replace("\r\n", "\n").replace("\r", "\n").strip()
+    normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+    normalized = re.sub(r"[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]+", " ", normalized)
+
+    if len(normalized) > limit:
+        return normalized[:limit]
+
+    return normalized
 
 
 def sanitize_optional_text(value: str | None, limit: int) -> str:
@@ -299,6 +373,33 @@ def truncate_text(value: str, limit: int = 4000) -> str:
     if len(value) <= limit:
         return value
     return f"{value[:limit]}\n... (truncated)"
+
+
+def sanitize_header_value(value: str | None, limit: int = 280) -> str:
+    return sanitize_optional_text(value, limit=limit)
+
+
+def sanitize_meta_value(value: Any, limit: int = 160) -> str:
+    if value is None:
+        return ""
+
+    if isinstance(value, bool):
+        return "true" if value else "false"
+
+    return sanitize_optional_text(str(value), limit=limit)
+
+
+def write_structured_contact_log(kind: str, payload: dict[str, Any]) -> None:
+    record = {
+        "kind": kind,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        **payload,
+    }
+
+    CONTACT_ERROR_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with CONTACT_ERROR_LOG_PATH.open("a", encoding="utf-8") as file_obj:
+        file_obj.write(json.dumps(record, ensure_ascii=False))
+        file_obj.write("\n")
 
 
 def get_default_contact_settings() -> dict[str, Any]:
@@ -404,7 +505,7 @@ def to_contact_settings_response(settings: dict[str, Any]) -> AdminContactSettin
 
 def resolve_contact_content(payload: ContactRequest) -> str:
     candidate = payload.content if payload.content is not None else payload.message
-    content = sanitize_optional_text(candidate, limit=2000)
+    content = sanitize_multiline_text(candidate, limit=2000)
 
     if len(content) < 3:
         raise HTTPException(status_code=422, detail="Message content is required.")
@@ -437,21 +538,148 @@ def hash_client_ip(ip_value: str) -> str:
     return digest[:20]
 
 
-def allow_contact_submission(client_ip: str) -> bool:
+def build_request_headers_snapshot(request: Request) -> dict[str, str]:
+    header_names = [
+        "accept",
+        "accept-language",
+        "accept-encoding",
+        "origin",
+        "referer",
+        "host",
+        "x-forwarded-for",
+        "x-real-ip",
+        "cf-connecting-ip",
+        "cf-ipcountry",
+        "priority",
+        "sec-fetch-site",
+        "sec-fetch-mode",
+        "sec-fetch-dest",
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform",
+        "user-agent",
+    ]
+    snapshot: dict[str, str] = {}
+    for name in header_names:
+        value = sanitize_header_value(request.headers.get(name))
+        if value:
+            snapshot[name] = value
+    return snapshot
+
+
+def normalize_client_meta(payload: ContactRequest) -> dict[str, str]:
+    raw_meta = payload.clientMeta if isinstance(payload.clientMeta, dict) else {}
+    normalized: dict[str, str] = {}
+    allowed_keys = {
+        "timezone",
+        "language",
+        "languages",
+        "screenResolution",
+        "viewportSize",
+        "refererPath",
+        "pageUrl",
+        "referrer",
+        "platform",
+        "cookieEnabled",
+        "touchPoints",
+        "hardwareConcurrency",
+        "deviceMemory",
+        "colorScheme",
+        "fingerprint",
+    }
+
+    for key in allowed_keys:
+        value = sanitize_meta_value(raw_meta.get(key))
+        if value:
+            normalized[key] = value
+
+    return normalized
+
+
+def collect_request_context(request: Request, client_meta: dict[str, str]) -> dict[str, Any]:
+    headers_snapshot = build_request_headers_snapshot(request)
+    parsed_url = request.url
+    referer = headers_snapshot.get("referer", "")
+    origin = headers_snapshot.get("origin", "")
+
+    return {
+        "method": request.method,
+        "path": sanitize_optional_text(parsed_url.path, limit=160),
+        "query": sanitize_optional_text(parsed_url.query, limit=240),
+        "scheme": sanitize_optional_text(parsed_url.scheme, limit=20),
+        "host": sanitize_optional_text(parsed_url.hostname or "", limit=120),
+        "port": sanitize_meta_value(parsed_url.port, limit=16),
+        "referer": referer,
+        "origin": origin,
+        "headers": headers_snapshot,
+        "clientMeta": client_meta,
+    }
+
+
+def detect_suspicious_patterns(*values: str) -> list[str]:
+    findings: list[str] = []
+    combined_values = [value for value in values if value]
+
+    for rule_name, pattern in SUSPICIOUS_PATTERN_RULES.items():
+        if any(pattern.search(value) for value in combined_values):
+            findings.append(rule_name)
+
+    return findings
+
+
+def build_submission_identity(ip_hash: str, user_agent: str, client_meta: dict[str, str]) -> tuple[str, str]:
+    ua_hash = hashlib.sha256(user_agent.encode("utf-8")).hexdigest()[:12] if user_agent else "ua-none"
+    fingerprint_source = client_meta.get("fingerprint") or client_meta.get("viewportSize") or client_meta.get("screenResolution") or "meta-none"
+    fingerprint_hash = hashlib.sha256(fingerprint_source.encode("utf-8")).hexdigest()[:12]
+    return (
+        f"identity:{ip_hash}:{ua_hash}:{fingerprint_hash}",
+        f"network:{ip_hash}",
+    )
+
+
+def allow_rate_limit_key(key: str, capacity: float, refill_per_second: float, now_ts: float) -> bool:
+    state = RATE_LIMIT_BUCKETS.get(key)
+    if state is None:
+        RATE_LIMIT_BUCKETS[key] = {"tokens": capacity - 1, "updatedAt": now_ts}
+        return True
+
+    elapsed = max(0.0, now_ts - float(state["updatedAt"]))
+    tokens = min(capacity, float(state["tokens"]) + (elapsed * refill_per_second))
+    if tokens < 1:
+        state["tokens"] = tokens
+        state["updatedAt"] = now_ts
+        return False
+
+    state["tokens"] = tokens - 1
+    state["updatedAt"] = now_ts
+    return True
+
+
+def allow_contact_submission(identity_key: str, network_key: str, dedupe_key: str) -> tuple[bool, str]:
     now_ts = time.time()
+    refill_per_second = CONTACT_RATE_LIMIT_MAX_REQUESTS / max(CONTACT_RATE_LIMIT_WINDOW_SECONDS, 1)
+    network_capacity = max(float(CONTACT_RATE_LIMIT_MAX_REQUESTS), float(CONTACT_RATE_LIMIT_BURST) + 2.0)
 
     with RATE_LIMIT_LOCK:
-        bucket = RATE_LIMIT_BUCKETS[client_ip]
-        threshold = now_ts - CONTACT_RATE_LIMIT_WINDOW_SECONDS
+        expired_keys = [
+            key for key, created_at in RECENT_SUBMISSIONS.items()
+            if now_ts - created_at > CONTACT_DUPLICATE_WINDOW_SECONDS
+        ]
+        for key in expired_keys:
+            RECENT_SUBMISSIONS.pop(key, None)
 
-        while bucket and bucket[0] < threshold:
-            bucket.popleft()
+        duplicate_at = RECENT_SUBMISSIONS.get(dedupe_key)
+        if duplicate_at and now_ts - duplicate_at <= CONTACT_DUPLICATE_WINDOW_SECONDS:
+            return False, "duplicate"
 
-        if len(bucket) >= CONTACT_RATE_LIMIT_MAX_REQUESTS:
-            return False
+        if not allow_rate_limit_key(identity_key, float(CONTACT_RATE_LIMIT_BURST), refill_per_second, now_ts):
+            return False, "identity"
 
-        bucket.append(now_ts)
-        return True
+        if not allow_rate_limit_key(network_key, network_capacity, refill_per_second, now_ts):
+            return False, "network"
+
+        RECENT_SUBMISSIONS[dedupe_key] = now_ts
+        return True, "ok"
 
 
 def read_message_records() -> list[dict[str, Any]]:
@@ -573,6 +801,13 @@ def is_smtp_configured(settings: dict[str, Any]) -> bool:
 
 def build_notification_email_body(record: dict[str, Any]) -> str:
     want_reply_text = "Yes" if record.get("wantReply") else "No"
+    request_context = record.get("requestContext") if isinstance(record.get("requestContext"), dict) else {}
+    client_meta = request_context.get("clientMeta") if isinstance(request_context.get("clientMeta"), dict) else {}
+    headers = request_context.get("headers") if isinstance(request_context.get("headers"), dict) else {}
+    suspicious_tags = record.get("securitySignals") if isinstance(record.get("securitySignals"), list) else []
+    client_meta_lines = [f"{key}: {value}" for key, value in client_meta.items()]
+    header_lines = [f"{key}: {value}" for key, value in headers.items()]
+
     return "\n".join(
         [
             "You received a new private message from the personal homepage.",
@@ -591,6 +826,18 @@ def build_notification_email_body(record: dict[str, Any]) -> str:
             f"Created At (UTC): {record.get('createdAt')}",
             f"Client IP Hash: {record.get('ipHash')}",
             f"User Agent: {record.get('userAgent') or '-'}",
+            f"Path: {request_context.get('path') or '-'}",
+            f"Query: {request_context.get('query') or '-'}",
+            f"Host: {request_context.get('host') or '-'}",
+            f"Origin: {request_context.get('origin') or '-'}",
+            f"Referer: {request_context.get('referer') or '-'}",
+            f"Security Signals: {', '.join(suspicious_tags) if suspicious_tags else '-'}",
+            "",
+            "[Client Meta]",
+            *(client_meta_lines or ["-"]),
+            "",
+            "[Headers]",
+            *(header_lines or ["-"]),
         ]
     )
 
@@ -644,7 +891,15 @@ def trigger_notification_email(record: dict[str, Any]) -> None:
         try:
             send_notification_email(record, settings)
         except Exception as error:  # noqa: BLE001
-            print(f"[contact] email send failed: {error}")
+            logger.exception("contact email send failed")
+            write_structured_contact_log(
+                "mailer_error",
+                {
+                    "messageId": record.get("id"),
+                    "errorCode": "5001",
+                    "errorMessage": str(error),
+                },
+            )
 
     Thread(target=worker, daemon=True).start()
 
@@ -1115,6 +1370,8 @@ async def admin_update_contact_settings(payload: AdminContactSettingsUpdateReque
 async def submit_contact(payload: ContactRequest, request: Request) -> ContactResponse:
     received_at = datetime.now(timezone.utc).isoformat()
     settings = read_contact_settings()
+    client_meta = normalize_client_meta(payload)
+    request_context = collect_request_context(request, client_meta)
 
     # 蜜罐命中时直接接受，避免给脚本明确反馈。
     if payload.website and payload.website.strip():
@@ -1124,6 +1381,13 @@ async def submit_contact(payload: ContactRequest, request: Request) -> ContactRe
     name = sanitize_optional_text(payload.name, limit=80)
     email = sanitize_optional_text(payload.email, limit=120)
     phone = sanitize_optional_text(payload.phone, limit=32)
+    user_agent = sanitize_header_value(request.headers.get("user-agent"))
+    client_ip = get_client_ip(request)
+    ip_hash = hash_client_ip(client_ip)
+    identity_key, network_key = build_submission_identity(ip_hash, user_agent, client_meta)
+    dedupe_seed = "|".join([ip_hash, email, phone, content])
+    dedupe_key = hashlib.sha256(dedupe_seed.encode("utf-8")).hexdigest()
+    security_signals = detect_suspicious_patterns(content, name, email, phone)
 
     if email and not looks_like_email(email):
         raise HTTPException(status_code=422, detail="Email format is invalid.")
@@ -1131,13 +1395,27 @@ async def submit_contact(payload: ContactRequest, request: Request) -> ContactRe
     if phone and not looks_like_phone(phone):
         raise HTTPException(status_code=422, detail="Phone format is invalid.")
 
-    client_ip = get_client_ip(request)
-    if not allow_contact_submission(client_ip):
-        raise HTTPException(status_code=429, detail="Too many messages. Please try again later.")
+    if payload.wantReply and not email and not phone:
+        raise HTTPException(status_code=422, detail="Email or phone is required when reply is requested.")
 
-    CONTACT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with CONTACT_LOG_PATH.open("a", encoding="utf-8") as file_obj:
-        file_obj.write(f"{received_at}\t{name or '-'}\t{email or '-'}\t{phone or '-'}\t{content}\n")
+    allowed, rate_limit_reason = allow_contact_submission(identity_key, network_key, dedupe_key)
+    if not allowed:
+        detail = "Duplicate message detected. Please wait before sending the same content again."
+        if rate_limit_reason != "duplicate":
+            detail = "Too many messages from this device and network. Please try again later."
+
+        write_structured_contact_log(
+            "rate_limited_contact",
+            {
+                "reason": rate_limit_reason,
+                "ipHash": ip_hash,
+                "userAgent": user_agent,
+                "email": email or "-",
+                "phone": phone or "-",
+                "requestContext": request_context,
+            },
+        )
+        raise HTTPException(status_code=429, detail=detail)
 
     message_record = {
         "id": build_message_id(),
@@ -1149,11 +1427,31 @@ async def submit_contact(payload: ContactRequest, request: Request) -> ContactRe
         "phone": phone,
         "wantReply": bool(payload.wantReply),
         "content": content,
-        "ipHash": hash_client_ip(client_ip),
-        "userAgent": sanitize_optional_text(request.headers.get("user-agent"), limit=280),
+        "ipHash": ip_hash,
+        "userAgent": user_agent,
+        "securitySignals": security_signals,
+        "requestContext": request_context,
     }
 
-    append_message_record(message_record)
+    try:
+        CONTACT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with CONTACT_LOG_PATH.open("a", encoding="utf-8") as file_obj:
+            file_obj.write(f"{received_at}\t{name or '-'}\t{email or '-'}\t{phone or '-'}\t{content}\n")
+
+        append_message_record(message_record)
+    except OSError as error:
+        logger.exception("contact persistence failed")
+        write_structured_contact_log(
+            "contact_persist_error",
+            {
+                "messageId": message_record["id"],
+                "errorCode": "5002",
+                "errorMessage": str(error),
+                "requestContext": request_context,
+            },
+        )
+        raise HTTPException(status_code=500, detail="5002: Message persistence failed.") from error
+
     trigger_notification_email(message_record)
 
     if bool(settings.get("contactPlaceholderMode", True)):

@@ -1041,6 +1041,18 @@
         return "<span class=\"message-chip " + statusClass + "\">" + escapeHtml(normalized) + "</span>";
     }
 
+    function formatJsonBlock(value) {
+        if (!value || (typeof value === "object" && Object.keys(value).length === 0)) {
+            return "-";
+        }
+
+        try {
+            return JSON.stringify(value, null, 2);
+        } catch (_error) {
+            return String(value);
+        }
+    }
+
     function renderContactSettingsBlock() {
         var settings = Object.assign(createDefaultContactSettings(), state.contactSettings || {});
         var passConfiguredText = settings.smtpPassConfigured ? "Configured" : "Not configured";
@@ -1092,12 +1104,13 @@
         } else {
             listHtml = state.messages.map(function (item) {
                 var activeClass = item.id === state.activeMessageId ? "active" : "";
+                var exactTime = escapeHtml(String(item.createdAt || ""));
                 return ""
                     + "<button type=\"button\" class=\"message-list-item " + activeClass + "\" data-message-id=\"" + escapeHtml(item.id) + "\" "
                     + (state.busy ? "disabled" : "")
                     + ">"
                     + "<div class=\"message-list-head\">"
-                    + "<strong>" + escapeHtml(formatTime(item.createdAt)) + "</strong>"
+                    + "<span class=\"message-time-pill\" title=\"" + exactTime + "\">" + escapeHtml(formatTime(item.createdAt)) + "</span>"
                     + renderMessageStatusChip(item.status)
                     + "</div>"
                     + "<p>" + escapeHtml(item.preview || "-") + "</p>"
@@ -1114,6 +1127,10 @@
         var processButtonHtml = "";
 
         if (state.activeMessageDetail) {
+            var requestContext = state.activeMessageDetail.requestContext || {};
+            var securitySignals = Array.isArray(state.activeMessageDetail.securitySignals)
+                ? state.activeMessageDetail.securitySignals.join(", ")
+                : "";
             detailHtml = ""
                 + "<div class=\"message-detail-grid\">"
                 + "<p><strong>ID:</strong> " + escapeHtml(state.activeMessageDetail.id || "-") + "</p>"
@@ -1125,9 +1142,18 @@
                 + "<p><strong>Status:</strong> " + escapeHtml(state.activeMessageDetail.status || "new") + "</p>"
                 + "<p><strong>Processed:</strong> " + escapeHtml(formatTime(state.activeMessageDetail.processedAt)) + "</p>"
                 + "<p><strong>IP Hash:</strong> " + escapeHtml(state.activeMessageDetail.ipHash || "-") + "</p>"
+                + "<p><strong>User Agent:</strong> " + escapeHtml(state.activeMessageDetail.userAgent || "-") + "</p>"
+                + "<p><strong>Path:</strong> " + escapeHtml(requestContext.path || "-") + "</p>"
+                + "<p><strong>Origin:</strong> " + escapeHtml(requestContext.origin || "-") + "</p>"
+                + "<p><strong>Referer:</strong> " + escapeHtml(requestContext.referer || "-") + "</p>"
+                + "<p><strong>Security Signals:</strong> " + escapeHtml(securitySignals || "-") + "</p>"
                 + "</div>"
                 + "<h4 class=\"panel-subhead message-content-title\">Message</h4>"
-                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(state.activeMessageDetail.content || "") + "</pre>";
+                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(state.activeMessageDetail.content || "") + "</pre>"
+                + "<h4 class=\"panel-subhead message-content-title\">Client Meta</h4>"
+                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(requestContext.clientMeta || {})) + "</pre>"
+                + "<h4 class=\"panel-subhead message-content-title\">Headers</h4>"
+                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(requestContext.headers || {})) + "</pre>";
 
             if (state.activeMessageDetail.status !== "processed") {
                 processButtonHtml = ""
