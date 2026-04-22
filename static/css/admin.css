@@ -464,6 +464,12 @@ body {
     color: #b91c1c;
 }
 
+.message-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .message-content-title {
     margin-top: 2px !important;
 }

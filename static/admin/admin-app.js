@@ -1133,6 +1133,14 @@
             var securitySignals = Array.isArray(state.activeMessageDetail.securitySignals)
                 ? state.activeMessageDetail.securitySignals.join(", ")
                 : "";
+            var sensitiveWords = Array.isArray(state.activeMessageDetail.sensitiveWords)
+                ? state.activeMessageDetail.sensitiveWords
+                : [];
+            var sensitiveWordsHtml = sensitiveWords.length === 0
+                ? "<span class=\"message-risk-badge\">None</span>"
+                : sensitiveWords.map(function (word) {
+                    return "<span class=\"message-risk-badge danger\">" + escapeHtml(String(word)) + "</span>";
+                }).join("");
             var summaryJson = formatJsonBlock(enrichment.summary || {});
             var redAlert = riskAssessment.redAlertLabel || "无";
             detailHtml = ""
@@ -1154,6 +1162,8 @@
                 + "<p><strong>Security Signals:</strong> " + escapeHtml(securitySignals || "-") + "</p>"
                 + "<p><strong>异常探针预警:</strong> <span class=\"" + (redAlert !== "无" ? "message-risk-badge danger" : "message-risk-badge") + "\">" + escapeHtml(redAlert) + "</span></p>"
                 + "</div>"
+                + "<h4 class=\"panel-subhead message-content-title\">Sensitive Words</h4>"
+                + "<div class=\"message-badge-row\">" + sensitiveWordsHtml + "</div>"
                 + "<h4 class=\"panel-subhead message-content-title\">Message</h4>"
                 + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(state.activeMessageDetail.content || "") + "</pre>"
                 + "<h4 class=\"panel-subhead message-content-title\">中文画像摘要</h4>"
