@@ -160,6 +160,30 @@
         }
     }
 
+    function getYesNoLabel(value) {
+        return value ? "是" : "否";
+    }
+
+    function getMessageStatusLabel(status) {
+        return String(status || "new") === "processed" ? "已处理" : "新消息";
+    }
+
+    function getPublishStatusLabel(status) {
+        if (status === "running") {
+            return "发布中";
+        }
+
+        if (status === "success") {
+            return "发布成功";
+        }
+
+        if (status === "failed") {
+            return "发布失败";
+        }
+
+        return "空闲";
+    }
+
     function setBusy(nextBusy) {
         state.busy = Boolean(nextBusy);
         render();
@@ -955,15 +979,15 @@
             + "<div class=\"auth-wrap\">"
             + "<section class=\"auth-card\">"
             + "<h1 class=\"admin-title\">Personal Homepage Admin</h1>"
-            + "<p class=\"admin-subtitle\">Enter ADMIN_API_KEY to connect. Password is never stored in browser storage.</p>"
+            + "<p class=\"admin-subtitle\">输入 ADMIN_API_KEY 后连接后台。密码不会保存在浏览器存储中。</p>"
             + "<label class=\"field\" for=\"api-key-input\">"
             + "<span class=\"field-label\">ADMIN_API_KEY</span>"
-            + "<input id=\"api-key-input\" type=\"password\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"Paste your key\" "
+            + "<input id=\"api-key-input\" type=\"password\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"粘贴你的密钥\" "
             + (state.busy ? "disabled" : "")
             + ">"
             + "</label>"
             + "<div class=\"auth-actions\">"
-            + "<button id=\"connect-button\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Connect</button>"
+            + "<button id=\"connect-button\" type=\"button\" " + (state.busy ? "disabled" : "") + ">连接后台</button>"
             + "</div>"
             + "<div class=\"status-line " + (state.errorText ? "error" : "") + "\">"
             + escapeHtml(state.errorText || state.statusText)
@@ -991,16 +1015,17 @@
     function renderPublishStatusBlock() {
         var status = state.publish.status || "idle";
         var statusClass = getPublishStatusClass(status);
+        var statusLabel = getPublishStatusLabel(status);
 
         return ""
             + "<section class=\"publish-status-block " + statusClass + "\">"
             + "<div class=\"publish-status-head\">"
-            + "<span class=\"publish-status-label\">Publish</span>"
-            + "<span class=\"publish-status-chip " + statusClass + "\">" + escapeHtml(status) + "</span>"
+            + "<span class=\"publish-status-label\">发布状态</span>"
+            + "<span class=\"publish-status-chip " + statusClass + "\">" + escapeHtml(statusLabel) + "</span>"
             + "</div>"
             + "<div class=\"publish-status-row\">"
-            + "<span>Started: " + escapeHtml(formatTime(state.publish.startedAt)) + "</span>"
-            + "<span>Finished: " + escapeHtml(formatTime(state.publish.finishedAt)) + "</span>"
+            + "<span>开始时间： " + escapeHtml(formatTime(state.publish.startedAt)) + "</span>"
+            + "<span>结束时间： " + escapeHtml(formatTime(state.publish.finishedAt)) + "</span>"
             + "</div>"
             + "</section>";
     }
@@ -1012,7 +1037,7 @@
             blocks.push(
                 ""
                 + "<section class=\"publish-log-block error\">"
-                + "<h3 class=\"publish-log-title\">Error</h3>"
+                + "<h3 class=\"publish-log-title\">错误日志</h3>"
                 + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(state.publish.lastError) + "</pre>"
                 + "</section>"
             );
@@ -1022,14 +1047,14 @@
             blocks.push(
                 ""
                 + "<section class=\"publish-log-block\">"
-                + "<h3 class=\"publish-log-title\">Output</h3>"
+                + "<h3 class=\"publish-log-title\">输出日志</h3>"
                 + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(state.publish.lastOutput) + "</pre>"
                 + "</section>"
             );
         }
 
         if (blocks.length === 0) {
-            return "<p class=\"admin-subtitle publish-empty\">No publish logs yet.</p>";
+            return "<p class=\"admin-subtitle publish-empty\">当前还没有发布日志。</p>";
         }
 
         return "<div class=\"publish-logs\">" + blocks.join("") + "</div>";
@@ -1038,7 +1063,7 @@
     function renderMessageStatusChip(status) {
         var normalized = String(status || "new");
         var statusClass = normalized === "processed" ? "processed" : "new";
-        return "<span class=\"message-chip " + statusClass + "\">" + escapeHtml(normalized) + "</span>";
+        return "<span class=\"message-chip " + statusClass + "\">" + escapeHtml(getMessageStatusLabel(normalized)) + "</span>";
     }
 
     function formatJsonBlock(value) {
@@ -1055,15 +1080,15 @@
 
     function renderContactSettingsBlock() {
         var settings = Object.assign(createDefaultContactSettings(), state.contactSettings || {});
-        var passConfiguredText = settings.smtpPassConfigured ? "Configured" : "Not configured";
+        var passConfiguredText = settings.smtpPassConfigured ? "已配置" : "未配置";
 
         return ""
             + "<section class=\"smtp-panel\">"
             + "<div class=\"smtp-panel-head\">"
-            + "<h3 class=\"panel-subhead\">SMTP Settings</h3>"
-            + "<span class=\"smtp-pass-indicator\">Password: " + escapeHtml(passConfiguredText) + "</span>"
+            + "<h3 class=\"panel-subhead\">SMTP 设置</h3>"
+            + "<span class=\"smtp-pass-indicator\">密码状态： " + escapeHtml(passConfiguredText) + "</span>"
             + "</div>"
-            + "<p class=\"admin-subtitle\">You can update mail delivery settings directly here. Leave password blank to keep current secret.</p>"
+            + "<p class=\"admin-subtitle\">可以直接在这里更新发信配置。密码留空时会保留当前密钥。</p>"
             + "<div class=\"smtp-grid\">"
             + "<label class=\"field\"><span class=\"field-label\">SMTP Host</span><input id=\"smtp-host-input\" type=\"text\" value=\"" + escapeHtml(settings.smtpHost || "") + "\" " + (state.busy ? "disabled" : "") + "></label>"
             + "<label class=\"field\"><span class=\"field-label\">SMTP Port</span><input id=\"smtp-port-input\" type=\"number\" min=\"1\" max=\"65535\" value=\"" + escapeHtml(String(settings.smtpPort || 465)) + "\" " + (state.busy ? "disabled" : "") + "></label>"
@@ -1071,13 +1096,13 @@
             + "<label class=\"field\"><span class=\"field-label\">SMTP Password</span><input id=\"smtp-pass-input\" type=\"password\" autocomplete=\"new-password\" placeholder=\"Leave blank to keep\" " + (state.busy ? "disabled" : "") + "></label>"
             + "<label class=\"field\"><span class=\"field-label\">Mail From</span><input id=\"mail-from-input\" type=\"text\" value=\"" + escapeHtml(settings.mailFrom || "") + "\" " + (state.busy ? "disabled" : "") + "></label>"
             + "<label class=\"field\"><span class=\"field-label\">Mail To</span><input id=\"mail-to-input\" type=\"text\" value=\"" + escapeHtml(settings.mailTo || "") + "\" " + (state.busy ? "disabled" : "") + "></label>"
-            + "<label class=\"field smtp-span-2\"><span class=\"field-label\">Subject Prefix</span><input id=\"mail-subject-prefix-input\" type=\"text\" value=\"" + escapeHtml(settings.mailSubjectPrefix || "") + "\" " + (state.busy ? "disabled" : "") + "></label>"
-            + "<label class=\"checkbox-field\"><span class=\"field-label\">Use SSL (465)</span><input id=\"smtp-use-ssl-input\" type=\"checkbox\" " + (settings.smtpUseSsl ? "checked " : "") + (state.busy ? "disabled" : "") + "></label>"
-            + "<label class=\"checkbox-field\"><span class=\"field-label\">Use STARTTLS</span><input id=\"smtp-use-starttls-input\" type=\"checkbox\" " + (settings.smtpUseStarttls ? "checked " : "") + (state.busy ? "disabled" : "") + "></label>"
-            + "<label class=\"checkbox-field smtp-span-2\"><span class=\"field-label\">Placeholder Mode (disable real sending)</span><input id=\"contact-placeholder-mode-input\" type=\"checkbox\" " + (settings.contactPlaceholderMode ? "checked " : "") + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"field smtp-span-2\"><span class=\"field-label\">邮件标题前缀</span><input id=\"mail-subject-prefix-input\" type=\"text\" value=\"" + escapeHtml(settings.mailSubjectPrefix || "") + "\" " + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"checkbox-field\"><span class=\"field-label\">使用 SSL (465)</span><input id=\"smtp-use-ssl-input\" type=\"checkbox\" " + (settings.smtpUseSsl ? "checked " : "") + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"checkbox-field\"><span class=\"field-label\">使用 STARTTLS</span><input id=\"smtp-use-starttls-input\" type=\"checkbox\" " + (settings.smtpUseStarttls ? "checked " : "") + (state.busy ? "disabled" : "") + "></label>"
+            + "<label class=\"checkbox-field smtp-span-2\"><span class=\"field-label\">占位模式（关闭真实发信）</span><input id=\"contact-placeholder-mode-input\" type=\"checkbox\" " + (settings.contactPlaceholderMode ? "checked " : "") + (state.busy ? "disabled" : "") + "></label>"
             + "</div>"
             + "<div class=\"smtp-actions\">"
-            + "<button id=\"smtp-save-button\" class=\"secondary\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Save SMTP Settings</button>"
+            + "<button id=\"smtp-save-button\" class=\"secondary\" type=\"button\" " + (state.busy ? "disabled" : "") + ">保存 SMTP 设置</button>"
             + "</div>"
             + "</section>";
     }
@@ -1085,9 +1110,9 @@
     function renderMessagesBlock() {
         var filter = state.messageFilter || "all";
         var filterButtons = [
-            { key: "all", label: "All" },
-            { key: "new", label: "New" },
-            { key: "processed", label: "Processed" }
+            { key: "all", label: "全部" },
+            { key: "new", label: "新消息" },
+            { key: "processed", label: "已处理" }
         ].map(function (item) {
             var klass = filter === item.key ? "active" : "ghost";
             return ""
@@ -1100,11 +1125,12 @@
 
         var listHtml = "";
         if (state.messages.length === 0) {
-            listHtml = "<p class=\"admin-subtitle\">No messages in this filter.</p>";
+            listHtml = "<p class=\"admin-subtitle\">当前筛选下没有留言。</p>";
         } else {
             listHtml = state.messages.map(function (item) {
                 var activeClass = item.id === state.activeMessageId ? "active" : "";
                 var exactTime = escapeHtml(String(item.createdAt || ""));
+                var statusLabel = getMessageStatusLabel(item.status);
                 return ""
                     + "<button type=\"button\" class=\"message-list-item " + activeClass + "\" data-message-id=\"" + escapeHtml(item.id) + "\" "
                     + (state.busy ? "disabled" : "")
@@ -1113,17 +1139,19 @@
                     + "<span class=\"message-time-pill\" title=\"" + exactTime + "\">" + escapeHtml(formatTime(item.createdAt)) + "</span>"
                     + renderMessageStatusChip(item.status)
                     + "</div>"
-                    + "<p>" + escapeHtml(item.preview || "-") + "</p>"
+                    + "<p class=\"message-list-preview\">" + escapeHtml(item.preview || "-") + "</p>"
                     + "<p class=\"message-list-meta\">"
-                    + "Reply: " + escapeHtml(item.wantReply ? "Yes" : "No")
+                    + "状态： " + escapeHtml(statusLabel)
                     + " | "
-                    + "Email: " + escapeHtml(item.email || "-")
+                    + "回复： " + escapeHtml(getYesNoLabel(item.wantReply))
+                    + " | "
+                    + "邮箱： " + escapeHtml(item.email || "-")
                     + "</p>"
                     + "</button>";
             }).join("");
         }
 
-        var detailHtml = "<p class=\"admin-subtitle\">Select a message to view details.</p>";
+        var detailHtml = "<p class=\"admin-subtitle\">从左侧选择一条留言后，这里会显示完整详情。</p>";
         var processButtonHtml = "";
 
         if (state.activeMessageDetail) {
@@ -1136,60 +1164,69 @@
             var sensitiveWords = Array.isArray(state.activeMessageDetail.sensitiveWords)
                 ? state.activeMessageDetail.sensitiveWords
                 : [];
+            var statusLabel = getMessageStatusLabel(state.activeMessageDetail.status);
             var sensitiveWordsHtml = sensitiveWords.length === 0
-                ? "<span class=\"message-risk-badge\">None</span>"
+                ? "<span class=\"message-risk-badge\">无命中</span>"
                 : sensitiveWords.map(function (word) {
                     return "<span class=\"message-risk-badge danger\">" + escapeHtml(String(word)) + "</span>";
                 }).join("");
             var summaryJson = formatJsonBlock(enrichment.summary || {});
             var redAlert = riskAssessment.redAlertLabel || "无";
             detailHtml = ""
-                + "<div class=\"message-detail-grid\">"
-                + "<p><strong>ID:</strong> " + escapeHtml(state.activeMessageDetail.id || "-") + "</p>"
-                + "<p><strong>Time:</strong> " + escapeHtml(formatTime(state.activeMessageDetail.createdAt)) + "</p>"
-                + "<p><strong>Name:</strong> " + escapeHtml(state.activeMessageDetail.name || "-") + "</p>"
-                + "<p><strong>Email:</strong> " + escapeHtml(state.activeMessageDetail.email || "-") + "</p>"
-                + "<p><strong>Phone:</strong> " + escapeHtml(state.activeMessageDetail.phone || "-") + "</p>"
-                + "<p><strong>Want Reply:</strong> " + escapeHtml(state.activeMessageDetail.wantReply ? "Yes" : "No") + "</p>"
-                + "<p><strong>Status:</strong> " + escapeHtml(state.activeMessageDetail.status || "new") + "</p>"
-                + "<p><strong>Processed:</strong> " + escapeHtml(formatTime(state.activeMessageDetail.processedAt)) + "</p>"
-                + "<p><strong>IP Hash:</strong> " + escapeHtml(state.activeMessageDetail.ipHash || "-") + "</p>"
-                + "<p><strong>Client IP:</strong> " + escapeHtml(requestContext.clientIp || "-") + "</p>"
-                + "<p><strong>User Agent:</strong> " + escapeHtml(state.activeMessageDetail.userAgent || "-") + "</p>"
-                + "<p><strong>Path:</strong> " + escapeHtml(requestContext.path || "-") + "</p>"
-                + "<p><strong>Origin:</strong> " + escapeHtml(requestContext.origin || "-") + "</p>"
-                + "<p><strong>Referer:</strong> " + escapeHtml(requestContext.referer || "-") + "</p>"
-                + "<p><strong>Security Signals:</strong> " + escapeHtml(securitySignals || "-") + "</p>"
-                + "<p><strong>异常探针预警:</strong> <span class=\"" + (redAlert !== "无" ? "message-risk-badge danger" : "message-risk-badge") + "\">" + escapeHtml(redAlert) + "</span></p>"
+                + "<div class=\"message-detail-content\">"
+                + "<div class=\"message-status-banner\">"
+                + "<div class=\"message-status-banner-copy\">"
+                + "<span class=\"message-status-banner-label\">当前留言状态</span>"
+                + "<strong>" + escapeHtml(statusLabel) + "</strong>"
                 + "</div>"
-                + "<h4 class=\"panel-subhead message-content-title\">Sensitive Words</h4>"
+                + renderMessageStatusChip(state.activeMessageDetail.status)
+                + "</div>"
+                + "<div class=\"message-detail-grid\">"
+                + "<p><strong>消息 ID：</strong> " + escapeHtml(state.activeMessageDetail.id || "-") + "</p>"
+                + "<p><strong>提交时间：</strong> " + escapeHtml(formatTime(state.activeMessageDetail.createdAt)) + "</p>"
+                + "<p><strong>姓名：</strong> " + escapeHtml(state.activeMessageDetail.name || "-") + "</p>"
+                + "<p><strong>邮箱：</strong> " + escapeHtml(state.activeMessageDetail.email || "-") + "</p>"
+                + "<p><strong>电话：</strong> " + escapeHtml(state.activeMessageDetail.phone || "-") + "</p>"
+                + "<p><strong>希望回复：</strong> " + escapeHtml(getYesNoLabel(state.activeMessageDetail.wantReply)) + "</p>"
+                + "<p><strong>处理时间：</strong> " + escapeHtml(formatTime(state.activeMessageDetail.processedAt)) + "</p>"
+                + "<p><strong>客户端 IP 哈希：</strong> " + escapeHtml(state.activeMessageDetail.ipHash || "-") + "</p>"
+                + "<p><strong>真实客户端 IP：</strong> " + escapeHtml(requestContext.clientIp || "-") + "</p>"
+                + "<p><strong>User Agent：</strong> " + escapeHtml(state.activeMessageDetail.userAgent || "-") + "</p>"
+                + "<p><strong>请求路径：</strong> " + escapeHtml(requestContext.path || "-") + "</p>"
+                + "<p><strong>来源域：</strong> " + escapeHtml(requestContext.origin || "-") + "</p>"
+                + "<p><strong>Referer：</strong> " + escapeHtml(requestContext.referer || "-") + "</p>"
+                + "<p><strong>安全信号：</strong> " + escapeHtml(securitySignals || "-") + "</p>"
+                + "<p><strong>异常探针预警：</strong> <span class=\"" + (redAlert !== "无" ? "message-risk-badge danger" : "message-risk-badge") + "\">" + escapeHtml(redAlert) + "</span></p>"
+                + "</div>"
+                + "<h4 class=\"panel-subhead message-content-title\">敏感词命中</h4>"
                 + "<div class=\"message-badge-row\">" + sensitiveWordsHtml + "</div>"
-                + "<h4 class=\"panel-subhead message-content-title\">Message</h4>"
+                + "<h4 class=\"panel-subhead message-content-title\">留言内容</h4>"
                 + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(state.activeMessageDetail.content || "") + "</pre>"
                 + "<h4 class=\"panel-subhead message-content-title\">中文画像摘要</h4>"
                 + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(summaryJson) + "</pre>"
                 + "<h4 class=\"panel-subhead message-content-title\">画像明细</h4>"
                 + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(enrichment)) + "</pre>"
-                + "<h4 class=\"panel-subhead message-content-title\">Client Meta</h4>"
+                + "<h4 class=\"panel-subhead message-content-title\">客户端元信息</h4>"
                 + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(requestContext.clientMeta || {})) + "</pre>"
-                + "<h4 class=\"panel-subhead message-content-title\">Headers</h4>"
+                + "<h4 class=\"panel-subhead message-content-title\">请求头</h4>"
                 + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(requestContext.headers || {})) + "</pre>"
                 + "<h4 class=\"panel-subhead message-content-title\">安全清洗快照</h4>"
-                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(state.activeMessageDetail.sanitizedFields || {})) + "</pre>";
+                + "<pre class=\"mono-output mono-scrollable\">" + escapeHtml(formatJsonBlock(state.activeMessageDetail.sanitizedFields || {})) + "</pre>"
+                + "</div>";
 
             if (state.activeMessageDetail.status !== "processed") {
                 processButtonHtml = ""
                     + "<button id=\"message-process-button\" class=\"secondary\" type=\"button\" "
                     + (state.busy ? "disabled" : "")
-                    + ">Mark as processed</button>";
+                    + ">标记为已处理</button>";
             }
         }
 
         return ""
             + "<section class=\"message-panel\">"
             + "<div class=\"message-panel-head\">"
-            + "<h3 class=\"panel-subhead\">Messages (" + escapeHtml(String(state.messageTotal || 0)) + ")</h3>"
-            + "<button id=\"messages-refresh-button\" class=\"ghost\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Refresh</button>"
+            + "<h3 class=\"panel-subhead\">留言消息（" + escapeHtml(String(state.messageTotal || 0)) + "）</h3>"
+            + "<button id=\"messages-refresh-button\" class=\"ghost\" type=\"button\" " + (state.busy ? "disabled" : "") + ">刷新列表</button>"
             + "</div>"
             + "<div class=\"message-filter-row\">" + filterButtons + "</div>"
             + "<div class=\"message-layout\">"
@@ -1214,7 +1251,7 @@
         }).join("");
 
         var backupsHtml = state.backups.length === 0
-            ? "<p class=\"admin-subtitle\">No backups yet.</p>"
+            ? "<p class=\"admin-subtitle\">当前还没有备份记录。</p>"
             : state.backups.map(function (item) {
                 return ""
                     + "<div class=\"backup-item\">"
@@ -1222,7 +1259,7 @@
                     + "<div class=\"backup-meta\">" + escapeHtml(formatTime(item.createdAt)) + " | " + escapeHtml(item.sizeBytes) + " bytes</div>"
                     + "<button class=\"danger\" type=\"button\" data-backup-name=\"" + escapeHtml(item.name) + "\" "
                     + (state.busy ? "disabled" : "")
-                    + ">Rollback</button>"
+                    + ">回滚</button>"
                     + "</div>";
             }).join("");
 
@@ -1252,13 +1289,13 @@
             + "<div class=\"admin-shell\">"
             + "<header class=\"admin-header\">"
             + "<h1 class=\"admin-title\">Personal Homepage Admin</h1>"
-            + "<p class=\"admin-subtitle\">Stable mode: plain JavaScript, no external CDN dependencies. Nested fields for homepage V2 are supported directly in the editor.</p>"
+            + "<p class=\"admin-subtitle\">稳定模式：后台使用纯 JavaScript 渲染，无外部 CDN 依赖，首页 V2 的嵌套字段也可以直接编辑。</p>"
             + "<div class=\"top-actions\">"
-            + "<button id=\"refresh-button\" class=\"secondary\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Reload Section</button>"
-            + "<button id=\"save-button\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Save</button>"
-            + "<button id=\"publish-button\" class=\"secondary\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Publish</button>"
-            + "<button id=\"publish-refresh-button\" class=\"ghost\" type=\"button\" " + (state.busy ? "disabled" : "") + ">Refresh Publish</button>"
-            + "<button id=\"logout-button\" class=\"danger\" type=\"button\">Logout</button>"
+            + "<button id=\"refresh-button\" class=\"secondary\" type=\"button\" " + (state.busy ? "disabled" : "") + ">重新加载分区</button>"
+            + "<button id=\"save-button\" type=\"button\" " + (state.busy ? "disabled" : "") + ">保存内容</button>"
+            + "<button id=\"publish-button\" class=\"secondary\" type=\"button\" " + (state.busy ? "disabled" : "") + ">执行发布</button>"
+            + "<button id=\"publish-refresh-button\" class=\"ghost\" type=\"button\" " + (state.busy ? "disabled" : "") + ">刷新发布状态</button>"
+            + "<button id=\"logout-button\" class=\"danger\" type=\"button\">退出登录</button>"
             + "</div>"
             + "<div class=\"status-line " + (state.errorText ? "error" : "") + "\">"
             + escapeHtml(state.errorText || state.statusText)
@@ -1266,19 +1303,19 @@
             + "</header>"
             + "<div class=\"admin-layout\">"
             + "<aside class=\"panel\">"
-            + "<h2>Sections</h2>"
+            + "<h2>内容分区</h2>"
             + "<div class=\"section-list\">" + sectionsHtml + "</div>"
-            + "<h3 class=\"panel-subhead\">Backups</h3>"
+            + "<h3 class=\"panel-subhead\">备份记录</h3>"
             + "<div class=\"backup-list\">" + backupsHtml + "</div>"
             + "</aside>"
             + "<main class=\"panel\">"
             + "<div class=\"editor-toolbar\">"
-            + "<h2>Editor</h2>"
-            + "<span class=\"source-file\">Source: " + escapeHtml(state.sourceFile || "-") + "</span>"
+            + "<h2>内容编辑</h2>"
+            + "<span class=\"source-file\">来源文件： " + escapeHtml(state.sourceFile || "-") + "</span>"
             + "</div>"
             + "<div class=\"editor-mode-toggle\">"
-            + "<button id=\"editor-mode-form\" type=\"button\" class=\"" + (state.editorMode === "form" ? "active" : "ghost") + "\" " + (state.busy ? "disabled" : "") + ">Field Editor</button>"
-            + "<button id=\"editor-mode-json\" type=\"button\" class=\"" + (state.editorMode === "json" ? "active" : "ghost") + "\" " + (state.busy ? "disabled" : "") + ">Raw JSON</button>"
+            + "<button id=\"editor-mode-form\" type=\"button\" class=\"" + (state.editorMode === "form" ? "active" : "ghost") + "\" " + (state.busy ? "disabled" : "") + ">字段编辑器</button>"
+            + "<button id=\"editor-mode-json\" type=\"button\" class=\"" + (state.editorMode === "json" ? "active" : "ghost") + "\" " + (state.busy ? "disabled" : "") + ">原始 JSON</button>"
             + "</div>"
             + publishStatusBlock
             + publishLogsBlock
