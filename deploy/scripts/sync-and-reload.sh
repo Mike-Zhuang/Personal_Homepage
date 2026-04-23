@@ -82,7 +82,15 @@ fi
 
 cd "$PROJECT_ROOT"
 
+current_head="$(git rev-parse HEAD)"
 git fetch origin "$BRANCH"
+fetched_head="$(git rev-parse FETCH_HEAD)"
+
+if [[ "$current_head" == "$fetched_head" ]]; then
+  echo "No upstream code changes detected on '$BRANCH'; skip publish and service reload."
+  exit 0
+fi
+
 git pull --ff-only origin "$BRANCH"
 
 if [[ ! -x "$PUBLISH_SCRIPT" ]]; then
