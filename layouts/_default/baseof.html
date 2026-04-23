@@ -42,6 +42,14 @@
                 {{ with hugo.Data.site.footer.icpNumber }}
                 <p class="site-icp"><a href="{{ hugo.Data.site.footer.icpUrl }}" target="_blank" rel="noreferrer">{{ . }}</a></p>
                 {{ end }}
+                {{ with hugo.Data.site.footer.publicSecurityNumber }}
+                <p class="site-gongan">
+                    <a href="{{ hugo.Data.site.footer.publicSecurityUrl }}" target="_blank" rel="noreferrer">
+                        <img src="{{ hugo.Data.site.footer.publicSecurityIcon | relURL }}" alt="公安备案图标" loading="lazy" decoding="async">
+                        <span>{{ . }}</span>
+                    </a>
+                </p>
+                {{ end }}
             </div>
         </footer>
     </div>

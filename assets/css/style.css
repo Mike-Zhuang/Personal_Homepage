@@ -838,6 +838,33 @@ main {
     text-decoration: underline;
 }
 
+.site-gongan {
+    justify-self: center;
+    text-align: center;
+    margin-top: 4px;
+}
+
+.site-gongan a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.site-gongan img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    flex: 0 0 16px;
+}
+
+.site-gongan a:hover,
+.site-gongan a:focus-visible {
+    color: var(--sk-link-blue-dark);
+    text-decoration: underline;
+}
+
 .reveal {
     opacity: 0;
     transform: translateY(18px);
