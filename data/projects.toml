@@ -30,7 +30,7 @@ linkNote = "Documentation in preparation."
 
 [[items]]
 title = "LBM Multi-Scenario Fluid Dynamics Simulator"
-status = "Open Source · Software Copyright"
+status = "Open Source · Registered Software Copyright"
 featured = true
 year = "2026"
 stack = "Python · NumPy · Matplotlib · LBM D2Q9"
@@ -38,7 +38,7 @@ summary = "An open source lattice Boltzmann simulation system for multi-scenario
 highlights = [
     "Implements D2Q9 lattice Boltzmann experiments with reusable simulation scenarios.",
     "Supports visual inspection workflows for vortex dynamics, obstacle flow, and parameter comparison.",
-    "Software copyright registration in progress for the V1.0 multi-scenario fluid simulator.",
+    "Software copyright registered for the V1.0 multi-scenario fluid simulator.",
 ]
 link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
 
@@ -48,12 +48,14 @@ intro = "Formal records are kept separate from publications so the evidence stay
 
 [[registrations.items]]
 title = "LBM Multi-Scenario Fluid Dynamics Simulator"
-status = "Software copyright registration in progress"
+status = "Software copyright registered"
 year = "2026"
 description = "Software Copyright Registration: 基于格子玻尔兹曼方法的多场景流体动态演化仿真系统 V1.0"
 meta = [
-    "Registration No.: Pending certificate issuance",
-    "Copyright Owner: Zhuang Chengbo / 庄程博",
+    "Certificate No.: 软著登字第17840259号",
+    "Registration No.: 2026SR0625978",
+    "Certificate Date: 2026-05-27",
+    "Copyright Owners: Zhuang Chengbo / 庄程博; Ma Rujin / 马如进",
 ]
 link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
 
