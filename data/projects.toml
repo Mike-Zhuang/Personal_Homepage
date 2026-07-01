@@ -44,18 +44,23 @@ link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
 
 [registrations]
 heading = "Registrations / Intellectual Property"
-intro = "Formal records are kept separate from publications so the evidence stays accurate and easy to audit."
+intro = "Formal records and in-progress applications are kept separate from publications so the evidence stays accurate and easy to audit."
 
 [[registrations.items]]
 title = "LBM Multi-Scenario Fluid Dynamics Simulator"
 status = "Software copyright registered"
 year = "2026"
-description = "Software Copyright Registration: 基于格子玻尔兹曼方法的多场景流体动态演化仿真系统 V1.0"
+description = "Software Copyright Record: 基于格子玻尔兹曼方法的多场景流体动态演化仿真系统 V1.0"
 meta = [
-    "Certificate No.: 软著登字第17840259号",
-    "Registration No.: 2026SR0625978",
-    "Certificate Date: 2026-05-27",
+    "Record Type: Software copyright registration",
+    "Software Name: 基于格子玻尔兹曼方法的多场景流体动态演化仿真系统",
+    "Version: V1.0",
+    "Current Status: Certificate issued",
+    "Public Identifier: Certificate No. 软著登字第17840259号; Registration No. 2026SR0625978",
+    "Key Date: Certificate date 2026-05-27",
+    "Rights: All rights; Acquisition: Original acquisition",
     "Copyright Owners: Zhuang Chengbo / 庄程博; Ma Rujin / 马如进",
+    "Domain & Language: Computational fluid dynamics simulation; Python",
 ]
 link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
 
@@ -63,14 +68,17 @@ link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
 title = "Random Traffic Flow Dynamic Simulation System"
 status = "Software copyright application in progress"
 year = "2026"
-description = "Software Copyright Application: 随机车流动态仿真模拟系统 V0.2"
+description = "Software Copyright Record: 随机车流动态仿真模拟系统 V0.2"
 meta = [
-    "Application Status: materials submitted; supplementary correction pending",
-    "Development Completed: 2025-11-18",
-    "Development Mode: Cooperative development",
-    "Rights Scope: All rights; Acquisition: Original acquisition",
+    "Record Type: Software copyright application",
+    "Software Name: 随机车流动态仿真模拟系统",
+    "Version: V0.2",
+    "Current Status: Materials submitted; supplementary correction pending",
+    "Public Identifier: Pending until certificate issuance",
+    "Key Date: Development completed 2025-11-18",
+    "Rights: All rights; Acquisition: Original acquisition",
     "Copyright Owners: Zhuang Chengbo / 庄程博; Wang Yinyou / 王尹囿; Tang Hongzhe / 汤鸿哲; Li Zhengsheng / 李正昇; Ma Rujin / 马如进",
-    "Domain: Traffic simulation; Language: C++",
+    "Domain & Language: Traffic simulation; C++",
 ]
 link = "https://github.com/xingxianggang/TJCS_Car_Sim_1092"
 
