@@ -59,6 +59,21 @@ meta = [
 ]
 link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
 
+[[registrations.items]]
+title = "Random Traffic Flow Dynamic Simulation System"
+status = "Software copyright application in progress"
+year = "2026"
+description = "Software Copyright Application: 随机车流动态仿真模拟系统 V0.2"
+meta = [
+    "Application Status: materials submitted; supplementary correction pending",
+    "Development Completed: 2025-11-18",
+    "Development Mode: Cooperative development",
+    "Rights Scope: All rights; Acquisition: Original acquisition",
+    "Copyright Owners: Zhuang Chengbo / 庄程博; Wang Yinyou / 王尹囿; Tang Hongzhe / 汤鸿哲; Li Zhengsheng / 李正昇; Ma Rujin / 马如进",
+    "Domain: Traffic simulation; Language: C++",
+]
+link = "https://github.com/xingxianggang/TJCS_Car_Sim_1092"
+
 [otherEngineering]
 heading = "Other Engineering Work"
 intro = "Selected secondary projects that show engineering breadth without changing the main simulation and digital twin narrative."
