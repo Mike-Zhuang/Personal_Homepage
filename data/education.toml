@@ -4,8 +4,14 @@ heading = "Education"
 [[items]]
 school = "Tongji University"
 program = "Future Technology Programme"
-period = "2026 - Present"
+period = "2025 - Present"
 location = ""
+
+[[items]]
+school = "UC Berkeley Summer Sessions"
+program = "Engineering / Cognitive Science coursework (ENGIN 170E + COGSCI 139)"
+period = "Summer 2026"
+location = "Berkeley, CA"
 
 [[items]]
 school = "Mudanjiang No.1 Senior High School"

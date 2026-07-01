@@ -50,9 +50,13 @@ These fields are optional and do not change the top-level section contract:
 
 - `site.hero.badges[]`
 - `site.hero.quickFacts[] = { label, value }`
+- `site.resume.note`
 - `projects.items[].featured`
 - `projects.items[].year`
+- `projects.items[].linkNote`
 - `projects.items[].highlights[]`
+- `projects.registrations`
+- `projects.otherEngineering`
 - `writing.items[].summary`
 
 The admin UI does not need special endpoint support for these fields because it edits arbitrary nested objects and arrays already.

@@ -26,6 +26,7 @@ highlights = [
     "Explores how semantics can guide 3D understanding instead of remaining a post-process label.",
 ]
 link = ""
+linkNote = "Documentation in preparation."
 
 [[items]]
 title = "Checkee Visa Analytics"
@@ -38,17 +39,55 @@ highlights = [
     "Turned noisy timeline data into decision-friendly percentile and trend views.",
     "Handled deployment, process control, and server operations as part of the product work.",
 ]
-link = ""
+link = "https://github.com/Mike-Zhuang/Checkee-Visa-Analytics"
 
 [[items]]
 title = "LBM Multi-Scenario Fluid Dynamics Simulator"
-status = "Research in Progress"
+status = "Open Source · Software Copyright"
 featured = true
-year = "2024"
-stack = "Python · NumPy · Matplotlib · Computational Physics"
-summary = "A lattice Boltzmann (D2Q9) simulation framework for vortex dynamics, interactive parameter tuning, and visual analysis of complex flow behavior."
+year = "2026"
+stack = "Python · NumPy · Matplotlib · LBM D2Q9"
+summary = "An open source lattice Boltzmann simulation system for multi-scenario fluid evolution, vortex dynamics, interactive parameter tuning, and visual analysis."
 highlights = [
-    "Implemented reusable simulation experiments for vortex evolution and parameter tuning.",
-    "Used visualization to make computational physics behavior easier to inspect and compare.",
+    "Implements D2Q9 lattice Boltzmann experiments with reusable simulation scenarios.",
+    "Supports visual inspection workflows for vortex dynamics, obstacle flow, and parameter comparison.",
+    "Software copyright registration in progress for the V1.0 multi-scenario fluid simulator.",
 ]
-link = "https://github.com/Mike-Zhuang/Foundations_of_Autonomous_Intelligence_Homework/tree/main/3.%20%E9%98%B6%E6%AE%B51%E5%AE%9E%E8%B7%B5%EF%BC%9A%E8%87%AA%E7%84%B6%E7%95%8C%E3%80%81%E7%94%9F%E6%B4%BB%E3%80%81%E5%B7%A5%E7%A8%8B%E9%A2%86%E5%9F%9F%E4%B8%AD%E7%9A%84%E5%8A%A8%E6%80%81%E6%BC%94%E5%8F%98%E7%AE%97%E6%B3%95%E5%8F%8A%E5%AE%9E%E7%8E%B0"
+link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
+
+[registrations]
+heading = "Registrations / Intellectual Property"
+intro = "Formal records are kept separate from publications so the evidence stays accurate and easy to audit."
+
+[[registrations.items]]
+title = "LBM Multi-Scenario Fluid Dynamics Simulator"
+status = "Software copyright registration in progress"
+year = "2026"
+description = "Software Copyright Registration: 基于格子玻尔兹曼方法的多场景流体动态演化仿真系统 V1.0"
+meta = [
+    "Registration No.: Pending certificate issuance",
+    "Copyright Owner: Zhuang Chengbo / 庄程博",
+]
+link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
+
+[otherEngineering]
+heading = "Other Engineering Work"
+intro = "Selected secondary projects that show engineering breadth without changing the main simulation and digital twin narrative."
+
+[[otherEngineering.items]]
+title = "CEACStatusBot_Web"
+summary = "Self-hosted visa status monitoring with email alerts and an admin console."
+meta = "Full-stack automation"
+link = "https://github.com/Mike-Zhuang/CEACStatusBot_Web"
+
+[[otherEngineering.items]]
+title = "Mind-Matter Classroom"
+summary = "Embodied AI classroom prototype exploring interactive learning workflows."
+meta = "Applied AI prototype"
+link = "https://github.com/Mike-Zhuang/Mind-Matter-Classroom"
+
+[[otherEngineering.items]]
+title = "ChemWave Maze Solver"
+summary = "Reaction-diffusion maze solving simulation for computational pattern dynamics."
+meta = "Simulation experiment"
+link = "https://github.com/Mike-Zhuang/ChemWave-Maze-Solver"

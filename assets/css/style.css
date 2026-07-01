@@ -646,6 +646,91 @@ main {
     color: var(--sk-dark-tertiary);
 }
 
+.work-supplement {
+    margin-top: 18px;
+    padding: 22px;
+    border-radius: var(--radius-card);
+    background: var(--sk-surface-light);
+    border: 1px solid var(--sk-border-light);
+    box-shadow: var(--sk-shadow);
+}
+
+.supplement-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 18px;
+}
+
+.supplement-heading h3 {
+    font-size: 26px;
+    line-height: 1.12;
+    letter-spacing: -0.22px;
+}
+
+.supplement-heading > p {
+    max-width: 520px;
+    color: var(--sk-text-tertiary);
+}
+
+.registration-list {
+    display: grid;
+    gap: 14px;
+}
+
+.registration-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px 18px;
+    align-items: end;
+    padding-top: 16px;
+    border-top: 1px solid var(--sk-border-light);
+}
+
+.registration-item .project-topline {
+    grid-column: 1 / -1;
+    justify-content: start;
+}
+
+.registration-copy {
+    display: grid;
+    gap: 8px;
+}
+
+.registration-copy h4,
+.other-work-card h4 {
+    font-size: 20px;
+    line-height: 1.18;
+    letter-spacing: -0.2px;
+}
+
+.registration-copy ul {
+    list-style: none;
+    display: grid;
+    gap: 4px;
+}
+
+.registration-copy li,
+.other-work-card .meta-line {
+    color: var(--sk-text-tertiary);
+}
+
+.other-work-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.other-work-card {
+    display: grid;
+    align-content: start;
+    gap: 9px;
+    min-height: 190px;
+    padding: 16px;
+    border-radius: 14px;
+    background: rgba(29, 29, 31, 0.04);
+}
+
 .snapshot-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -915,10 +1000,21 @@ main {
     }
 
     .project-grid,
+    .other-work-grid,
     .snapshot-grid,
     .snapshot-grid:has(.snapshot-card:nth-child(4)),
     .hero-side {
         grid-template-columns: 1fr;
+    }
+
+    .supplement-heading,
+    .registration-item {
+        grid-template-columns: 1fr;
+    }
+
+    .supplement-heading {
+        flex-direction: column;
+        gap: 10px;
     }
 
     .portrait-card {
@@ -1036,6 +1132,7 @@ main {
     }
 
     .project-card,
+    .work-supplement,
     .snapshot-card,
     .info-card,
     .contact-actions {

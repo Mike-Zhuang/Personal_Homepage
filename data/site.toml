@@ -31,7 +31,8 @@ paragraphs = [
 ]
 
 [resume]
-label = "Resume"
+label = "CV"
+note = "CV available upon request."
 href = ""
 enabled = false
 
@@ -50,7 +51,7 @@ location = "Shanghai, China"
 
 [footer]
 lineOne = "Built with Hugo and a minimal FastAPI backend."
-lineTwo = "Resume download is intentionally kept private."
+lineTwo = "CV available upon request."
 icpNumber = "沪ICP备2026015123号"
 icpUrl = "http://beian.miit.gov.cn/"
 publicSecurityNumber = "沪公网安备31012102000186号"

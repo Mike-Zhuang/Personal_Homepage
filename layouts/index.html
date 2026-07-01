@@ -136,6 +136,8 @@
                     <p class="stack-line">{{ .stack }}</p>
                     {{ if .link }}
                     <a class="inline-link" href="{{ .link }}" target="_blank" rel="noreferrer">Open project</a>
+                    {{ else if .linkNote }}
+                    <span class="muted">{{ .linkNote }}</span>
                     {{ else }}
                     <span class="muted">Link coming soon.</span>
                     {{ end }}
@@ -143,6 +145,78 @@
             </article>
             {{ end }}
         </div>
+
+        {{ with $projectsData.registrations }}
+        {{ if .items }}
+        <section class="work-supplement" aria-labelledby="registrations-heading">
+            <div class="supplement-heading">
+                <div>
+                    <p class="section-kicker">Evidence</p>
+                    <h3 id="registrations-heading">{{ .heading }}</h3>
+                </div>
+                {{ with .intro }}
+                <p>{{ . }}</p>
+                {{ end }}
+            </div>
+
+            <div class="registration-list">
+                {{ range .items }}
+                <article class="registration-item">
+                    <div class="project-topline">
+                        <span class="status-pill">{{ .status }}</span>
+                        {{ with .year }}
+                        <span class="meta-pill">{{ . }}</span>
+                        {{ end }}
+                    </div>
+                    <div class="registration-copy">
+                        <h4>{{ .title }}</h4>
+                        <p>{{ .description }}</p>
+                        {{ with .meta }}
+                        <ul>
+                            {{ range . }}
+                            <li>{{ . }}</li>
+                            {{ end }}
+                        </ul>
+                        {{ end }}
+                    </div>
+                    {{ with .link }}
+                    <a class="inline-link" href="{{ . }}" target="_blank" rel="noreferrer">Open repository</a>
+                    {{ end }}
+                </article>
+                {{ end }}
+            </div>
+        </section>
+        {{ end }}
+        {{ end }}
+
+        {{ with $projectsData.otherEngineering }}
+        {{ if .items }}
+        <section class="work-supplement other-work" aria-labelledby="other-work-heading">
+            <div class="supplement-heading">
+                <div>
+                    <p class="section-kicker">Additional Work</p>
+                    <h3 id="other-work-heading">{{ .heading }}</h3>
+                </div>
+                {{ with .intro }}
+                <p>{{ . }}</p>
+                {{ end }}
+            </div>
+
+            <div class="other-work-grid">
+                {{ range .items }}
+                <article class="other-work-card">
+                    <p class="meta-line">{{ .meta }}</p>
+                    <h4>{{ .title }}</h4>
+                    <p>{{ .summary }}</p>
+                    {{ with .link }}
+                    <a class="inline-link" href="{{ . }}" target="_blank" rel="noreferrer">View repo</a>
+                    {{ end }}
+                </article>
+                {{ end }}
+            </div>
+        </section>
+        {{ end }}
+        {{ end }}
     </div>
 </section>
 
@@ -247,7 +321,7 @@
             {{ if and $site.resume.enabled $site.resume.href }}
             <a class="button ghost wide light" href="{{ $site.resume.href }}" target="_blank" rel="noreferrer">{{ $site.resume.label }}</a>
             {{ else }}
-            <p class="contact-note">{{ $site.resume.label }} is intentionally private for now.</p>
+            <p class="contact-note">{{ or $site.resume.note "CV available upon request." }}</p>
             {{ end }}
 
             <form class="contact-form" id="contact-form" novalidate>
