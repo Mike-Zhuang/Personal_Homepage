@@ -29,19 +29,6 @@ link = ""
 linkNote = "Documentation in preparation."
 
 [[items]]
-title = "Checkee Visa Analytics"
-status = "Domain Launch Pending"
-featured = true
-year = "2025"
-stack = "FastAPI · React · TypeScript · Nginx · systemd"
-summary = "A full-stack analytics platform for visa timeline data with robust percentile statistics and production-grade Linux deployment."
-highlights = [
-    "Turned noisy timeline data into decision-friendly percentile and trend views.",
-    "Handled deployment, process control, and server operations as part of the product work.",
-]
-link = "https://github.com/Mike-Zhuang/Checkee-Visa-Analytics"
-
-[[items]]
 title = "LBM Multi-Scenario Fluid Dynamics Simulator"
 status = "Open Source · Software Copyright"
 featured = true
