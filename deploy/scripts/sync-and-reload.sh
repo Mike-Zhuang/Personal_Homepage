@@ -5,6 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${PROJECT_ROOT:-/opt/personal-homepage}"
 RUNTIME_ROOT="$PROJECT_ROOT/runtime"
+ENV_FILE="${ENV_FILE:-$PROJECT_ROOT/deploy/env/api.env}"
+REPO_DATA_ROOT="$PROJECT_ROOT/data"
 LOCK_ROOT="$RUNTIME_ROOT/locks"
 LOCK_FILE="$LOCK_ROOT/personal-homepage-sync.lock"
 
@@ -71,6 +73,15 @@ HUGO_BIN="${HUGO_BIN:-/usr/local/bin/hugo}"
 PUBLISH_SCRIPT="${PUBLISH_SCRIPT:-$PROJECT_ROOT/deploy/scripts/publish-content.sh}"
 API_HEALTH_URL="${API_HEALTH_URL:-http://127.0.0.1:8001/api/health}"
 
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+
+CONTENT_DATA_ROOT="${DATA_ROOT:-$REPO_DATA_ROOT}"
+
 if [[ ! -x "$HUGO_BIN" ]]; then
   HUGO_BIN="$(command -v hugo || true)"
 fi
@@ -91,7 +102,43 @@ if [[ "$current_head" == "$fetched_head" ]]; then
   exit 0
 fi
 
+changed_data_files=()
+while IFS= read -r changed_path; do
+  [[ -n "$changed_path" ]] && changed_data_files+=("$changed_path")
+done < <(git diff --name-only "$current_head" "$fetched_head" -- 'data/*.toml')
+
+data_sync_backup=""
+if [[ "$CONTENT_DATA_ROOT" != "$REPO_DATA_ROOT" && ${#changed_data_files[@]} -gt 0 ]]; then
+  for changed_path in "${changed_data_files[@]}"; do
+    data_name="${changed_path#data/}"
+    repo_file="$REPO_DATA_ROOT/$data_name"
+    live_file="$CONTENT_DATA_ROOT/$data_name"
+
+    if [[ ! -f "$repo_file" || ! -f "$live_file" ]] || ! cmp -s "$repo_file" "$live_file"; then
+      echo "Failed(code=12): repository data '$changed_path' changed upstream, but '$live_file' has independent content."
+      echo "Merge the repository update into live-data before deploying templates; refusing a mixed-version publish."
+      exit 12
+    fi
+  done
+
+  data_sync_backup="$RUNTIME_ROOT/backups/live-data-auto-sync-$(date +%Y%m%d%H%M%S)"
+  mkdir -p "$data_sync_backup"
+  for changed_path in "${changed_data_files[@]}"; do
+    data_name="${changed_path#data/}"
+    cp -a "$CONTENT_DATA_ROOT/$data_name" "$data_sync_backup/$data_name"
+  done
+  echo "Prepared live-data backup before repository sync: $data_sync_backup"
+fi
+
 git pull --ff-only origin "$BRANCH"
+
+if [[ -n "$data_sync_backup" ]]; then
+  for changed_path in "${changed_data_files[@]}"; do
+    data_name="${changed_path#data/}"
+    cp "$REPO_DATA_ROOT/$data_name" "$CONTENT_DATA_ROOT/$data_name"
+  done
+  echo "Synchronized changed repository data into live-data after fast-forward pull."
+fi
 
 if [[ ! -x "$PUBLISH_SCRIPT" ]]; then
   echo "Failed(code=127): publish script not found or not executable: $PUBLISH_SCRIPT"

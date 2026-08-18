@@ -112,6 +112,12 @@ DATA_ROOT=/opt/personal-homepage/runtime/live-data
 5. 在临时目录运行 `hugo --gc --minify`
 6. 最后把临时目录的 `public/` 同步到站点目录
 
+自动同步脚本还会在 `git pull` 前检查本次上游提交是否修改了 `data/*.toml`：
+
+1. 如果对应 `runtime/live-data` 文件仍与当前仓库版本一致，脚本先备份，再在 fast-forward 后同步新数据。
+2. 如果 `runtime/live-data` 已有 Admin 独立修改，脚本以状态码 `12` 中止，并拒绝发布“新模板 + 旧数据”的混合版本。
+3. 此时必须先人工合并仓库数据与 `runtime/live-data`，再重新执行同步脚本。
+
 ## 5. 冲突后的收尾
 
 在完成内容迁移后，需要把 git 工作区恢复干净：
