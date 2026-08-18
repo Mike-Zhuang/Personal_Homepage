@@ -84,6 +84,49 @@ PHONE_PATTERN = re.compile(r"^\+?[0-9][0-9()\-\s]{5,31}$")
 EMAIL_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._%+\-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)+$")
 SENSITIVE_WORD_END = "__end__"
 IGNORED_SENSITIVE_CHARS = set(" \t\r\n-_*.,;:|/\\'\"`~!@#$%^&()+=<>[]{}·。，“”‘’、！？…·")
+SENSITIVE_CONFUSABLE_TRANSLATION = str.maketrans(
+    {
+        "а": "a",
+        "е": "e",
+        "о": "o",
+        "р": "p",
+        "с": "c",
+        "х": "x",
+        "у": "y",
+        "і": "i",
+        "ј": "j",
+        "к": "k",
+        "м": "m",
+        "т": "t",
+        "в": "b",
+        "н": "h",
+        "α": "a",
+        "ε": "e",
+        "ι": "i",
+        "κ": "k",
+        "ο": "o",
+        "ρ": "p",
+        "τ": "t",
+        "υ": "y",
+        "χ": "x",
+        "ν": "v",
+    }
+)
+SENSITIVE_LEET_TRANSLATION = str.maketrans(
+    {
+        "0": "o",
+        "1": "i",
+        "2": "z",
+        "3": "e",
+        "4": "a",
+        "5": "s",
+        "6": "g",
+        "7": "t",
+        "8": "b",
+        "9": "g",
+    }
+)
+SENSITIVE_CJK_NOISE_PATTERN = re.compile(r"(?<=[\u4e00-\u9fff])[a-z0-9]{1,2}(?=[\u4e00-\u9fff])")
 SUSPICIOUS_PATTERN_RULES = {
     "xssScriptTag": re.compile(r"<\s*script\b", re.IGNORECASE),
     "xssInlineHandler": re.compile(r"\bon\w+\s*=", re.IGNORECASE),
@@ -503,14 +546,30 @@ def build_sanitized_contact_snapshot(name: str, email: str, phone: str, content:
 
 
 def normalize_sensitive_text(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", value).casefold()
+    normalized = unicodedata.normalize("NFKD", unicodedata.normalize("NFKC", value).casefold())
+    normalized = normalized.translate(SENSITIVE_CONFUSABLE_TRANSLATION)
     chars: list[str] = []
     for char in normalized:
+        if unicodedata.category(char).startswith("M"):
+            continue
         if char in IGNORED_SENSITIVE_CHARS:
             continue
         if char.isalnum() or "\u4e00" <= char <= "\u9fff":
             chars.append(char)
     return "".join(chars)
+
+
+def sensitive_text_variants(value: str) -> list[str]:
+    normalized = normalize_sensitive_text(value)
+    if not normalized:
+        return []
+
+    variants = [normalized]
+    leet_normalized = normalized.translate(SENSITIVE_LEET_TRANSLATION)
+    variants.append(leet_normalized)
+    variants.append(SENSITIVE_CJK_NOISE_PATTERN.sub("", normalized))
+    variants.append(SENSITIVE_CJK_NOISE_PATTERN.sub("", leet_normalized))
+    return list(dict.fromkeys(candidate for candidate in variants if candidate))
 
 
 def add_sensitive_word(word: str) -> None:
@@ -544,19 +603,16 @@ def find_sensitive_words(*values: str) -> list[str]:
 
     matched_words: list[str] = []
     for value in values:
-        normalized = normalize_sensitive_text(value)
-        if not normalized:
-            continue
-
-        for start_index in range(len(normalized)):
-            cursor = SENSITIVE_WORDS_ROOT
-            for current_char in normalized[start_index:]:
-                if current_char not in cursor:
-                    break
-                cursor = cursor[current_char]
-                matched_word = cursor.get(SENSITIVE_WORD_END)
-                if matched_word:
-                    matched_words.append(str(matched_word))
+        for normalized in sensitive_text_variants(value):
+            for start_index in range(len(normalized)):
+                cursor = SENSITIVE_WORDS_ROOT
+                for current_char in normalized[start_index:]:
+                    if current_char not in cursor:
+                        break
+                    cursor = cursor[current_char]
+                    matched_word = cursor.get(SENSITIVE_WORD_END)
+                    if matched_word:
+                        matched_words.append(str(matched_word))
 
     return list(dict.fromkeys(matched_words))
 

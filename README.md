@@ -84,6 +84,12 @@ Run this check before build/dev server if needed:
 ./scripts/check-template-asset-paths.sh
 ```
 
+Sensitive-word normalization and representative bypass cases can be checked with the API environment:
+
+```bash
+api/.venv/bin/python scripts/check-sensitive-words.py
+```
+
 ## VS Code Debug Preview
 
 Use the built-in debug launch profile:
