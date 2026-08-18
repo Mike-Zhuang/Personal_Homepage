@@ -1,13 +1,13 @@
 [hero]
-eyebrow = "Personal Homepage"
+eyebrow = "Zhuang Chengbo / Mike"
 title = "Zhuang Chengbo (Mike)"
-subtitle = "Future Technology student at Tongji University building digital twins, simulation systems, and practical AI tools."
-badges = ["Digital Twin Systems", "Simulation Workflows", "Applied AI"]
+subtitle = "Future Technology (Robotics) student at Tongji University building simulation systems, digital twins, and practical AI."
+badges = ["Simulation Systems", "Digital Twins & Semantic 3D", "Applied AI & LLM Research"]
 quickFacts = [
     { label = "Base", value = "Shanghai, China" },
     { label = "School", value = "Tongji University" },
-    { label = "Track", value = "Future Technology" },
-    { label = "Style", value = "Builder + Research" },
+    { label = "Track", value = "Future Technology (Robotics)" },
+    { label = "Approach", value = "Project Lead + Builder" },
 ]
 
 [hero.primaryCta]
@@ -19,15 +19,16 @@ label = "Get in Touch"
 href = "#contact"
 
 [profile]
-image = "/images/personal-homepage.jpg"
-alt = "Portrait of Zhuang Chengbo"
-caption = "Focused on turning technical systems into work that is useful outside demos."
+image = "/images/zhuang-chengbo-berkeley-hero.webp"
+mobileImage = "/images/zhuang-chengbo-berkeley-hero-mobile.webp"
+alt = "Zhuang Chengbo by the San Francisco Bay during UC Berkeley Summer Sessions"
+caption = "Berkeley, California · Summer 2026"
 
 [about]
 heading = "About"
 paragraphs = [
-    "I am a student at Tongji University (Future Technology track), focusing on simulation systems, digital twins, and applied AI.",
-    "I care about building systems that are technically solid, easy to maintain, and genuinely useful outside demos.",
+    "I work across robotics, multi-agent simulation, semantic 3D modeling, and digital twin systems.",
+    "I care about systems that are inspectable, reproducible, maintainable, and useful beyond a classroom demo.",
 ]
 
 [resume]
@@ -40,13 +41,13 @@ enabled = false
 heading = "Social"
 links = [
     { label = "GitHub", href = "https://github.com/Mike-Zhuang" },
-    { label = "Bilibili", href = "https://b23.tv/0XVlBWj" },
+    { label = "LinkedIn", href = "https://www.linkedin.com/in/chengbo-zhuang-a365a43b2/" },
 ]
 
 [contact]
 heading = "Contact"
 intro = "For collaboration, research discussion, or project opportunities, email is the best way to reach me."
-email = "cbzhuang@tongji.edu.cn"
+email = "mike@mikezhuang.cn"
 location = "Shanghai, China"
 
 [footer]

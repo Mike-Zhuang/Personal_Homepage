@@ -18,6 +18,14 @@ The color story is starkly binary. Product sections alternate between pure black
 - Pill-shaped CTAs (980px radius) creating soft, approachable action buttons
 - Generous whitespace between sections allowing each product moment to breathe
 
+### Personal Homepage Application
+
+- The homepage opens with a real Berkeley summer photograph rather than a portrait card. At widths above 1180px, the horizontal image becomes the full hero canvas and the copy uses its left-side sky as natural negative space.
+- Between 641px and 1180px, the same horizontal image becomes an unframed cinematic band above the hero copy so the subject is never cropped behind text.
+- At 640px and below, a separate crop from the same source photograph uses a square viewport, followed by a full-width dark copy band.
+- Representative work stays limited to four systems. Secondary projects, intellectual property records, and academic context remain visibly subordinate.
+- Public claims must retain explicit evidence boundaries: project level, course status, copyright status, deployment state, and institutional relationship are written precisely.
+
 ## 2. Color Palette & Roles
 
 ### Primary

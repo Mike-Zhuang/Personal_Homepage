@@ -2,22 +2,29 @@
 heading = "Achievements"
 
 [[items]]
-title = "Freshman Scholarship (Third Prize)"
+title = "Shanghai Higher Education Intelligent Agent Competition (Team Track First Prize)"
+issuer = "Shanghai Higher Education Institutions"
+year = "2026"
+note = "Awarded first prize in the team track."
+link = ""
+
+[[items]]
+title = "Annual Qiusuo Star"
 issuer = "Tongji University"
-year = "2025"
-note = "Academic scholarship in the first semester."
+year = "2025 - 2026"
+note = "Selected for Tongji University's annual university-level honor."
 link = ""
 
 [[items]]
 title = "Tongji Physics Tournament (Second Prize)"
 issuer = "Tongji University"
 year = "2025"
-note = "Awarded in the inaugural university physics academic competition."
+note = "Team award in the inaugural university physics academic competition."
 link = ""
 
 [[items]]
-title = "Oxford Prospects Programme (STEM Module) - A+"
-issuer = "Oxford Prospects Programme, Regent's Park College"
-year = "Jan-Feb 2026"
-note = "Completed short STEM module coursework hosted at Regent's Park College with top grade."
+title = "Tongji Mathematical Modeling Competition (Undergraduate Third Prize)"
+issuer = "Tongji University"
+year = "2026"
+note = "Team award in the undergraduate division."
 link = ""

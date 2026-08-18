@@ -3,44 +3,61 @@ heading = "Selected Work"
 
 [[items]]
 title = "Tongji Southwest Building No.1 Digital Twin"
-status = "Project Lead"
+status = "National Undergraduate Innovation Project · Project Lead"
 featured = true
-year = "2025"
-stack = "Unity · BIM · Digital Twin · Data Visualization"
-summary = "A high-fidelity digital twin project for historical building preservation and campus operation scenarios, with integrated visualization and interactive workflows."
+year = "2025 - Present"
+stack = "iS3 · MCP · AI Agents · Non-Visual Sensing · Laser Communication"
+summary = "A national-level digital twin and privacy-sensitive campus sensing project built around the iS3 platform."
 highlights = [
-    "Built a navigable twin for preservation, operation, and demonstration scenarios.",
-    "Connected BIM-driven structure with practical visualization and interaction workflows.",
-]
-link = "https://github.com/Southwest-Building-1-Digital-Twin"
-
-[[items]]
-title = "Multimodal Semantic BIM Generator"
-status = "SITP / Challenge Cup"
-featured = true
-year = "2025"
-stack = "3D Gaussian Splatting · Neural SDF · GNN · IFC"
-summary = "A semantic-driven 3D reconstruction workflow that transforms visual and point-cloud inputs into engineering-oriented BIM structures."
-highlights = [
-    "Bridges vision-heavy reconstruction outputs with engineering-oriented BIM targets.",
-    "Explores how semantics can guide 3D understanding instead of remaining a post-process label.",
+    "Integrated multi-source campus activity data, MCP-connected AI agent services, multi-device visualization, and local encryption.",
+    "Designed MQ-135 odor sensing, LED/TCS34725 non-visual foreign-object detection, and indoor laser communication for real-time alerts in privacy-sensitive spaces.",
 ]
 link = ""
-linkNote = "Documentation in preparation."
+linkNote = "Public documentation in preparation."
+
+[[items]]
+title = "Generative Multimodal Semantic 3D-to-BIM System"
+status = "Shanghai Municipal Innovation Project · Project Lead"
+featured = true
+year = "2025 - Present"
+stack = "3DGS · Qwen-VL · SAM3 · Hierarchical Reasoning · IFC"
+summary = "A semantic 3D modeling workflow for smart spaces that turns visual evidence into editable, engineering-oriented BIM structure."
+highlights = [
+    "Uses Qwen-VL to plan observation viewpoints and SAM3 for multi-view semantic segmentation on a 3D Gaussian Splatting geometry base.",
+    "Recovers editable BIM topology through hierarchical reasoning and preserves a traceable pixel-to-Gaussian-to-mesh-to-IFC evidence chain.",
+]
+link = ""
+linkNote = "Project documentation under review."
+
+[[items]]
+title = "EventShock Lab"
+status = "UC Berkeley ENGIN 170E · Deployed Research Prototype"
+featured = true
+year = "2026"
+stack = "Multi-Agent Simulation · FastAPI · React · TypeScript · Bounded LLM Cognition"
+summary = "A bilingual counterfactual market-stress laboratory for comparing matched simulations in which exactly one declared condition changes."
+highlights = [
+    "Combines human-reviewed evidence, frozen event packs, deterministic multi-agent simulation, and bounded LLM-assisted cognition.",
+    "Reports paired differences, uncertainty intervals, mechanism traces, and reproducibility exports without presenting synthetic paths as forecasts.",
+]
+link = "https://eventshock.mikezhuang.cn"
+linkLabel = "Open live product"
+secondaryLink = "https://github.com/Mike-Zhuang/EventShock"
+secondaryLinkLabel = "View repository"
 
 [[items]]
 title = "LBM Multi-Scenario Fluid Dynamics Simulator"
 status = "Open Source · Registered Software Copyright"
 featured = true
 year = "2026"
-stack = "Python · NumPy · Matplotlib · LBM D2Q9"
-summary = "An open source lattice Boltzmann simulation system for multi-scenario fluid evolution, vortex dynamics, interactive parameter tuning, and visual analysis."
+stack = "Python · NumPy · Matplotlib · D2Q9 LBM"
+summary = "An open-source lattice Boltzmann simulation system for multi-scenario fluid evolution, vortex dynamics, parameter studies, and visual analysis."
 highlights = [
-    "Implements D2Q9 lattice Boltzmann experiments with reusable simulation scenarios.",
-    "Supports visual inspection workflows for vortex dynamics, obstacle flow, and parameter comparison.",
-    "Software copyright registered for the V1.0 multi-scenario fluid simulator.",
+    "Covers Kármán vortex streets, complex obstacles, image mazes with BFS coupling, and NACA 0012 airfoil flow.",
+    "Supports interactive flow, vorticity, and lift visualization plus GIF/MP4 export; software copyright registered in May 2026.",
 ]
 link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
+linkLabel = "View repository"
 
 [registrations]
 heading = "Registrations / Intellectual Property"
@@ -66,14 +83,14 @@ link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
 
 [[registrations.items]]
 title = "Random Traffic Flow Dynamic Simulation System"
-status = "Software copyright application in progress"
+status = "Software copyright correction under review"
 year = "2026"
 description = "Software Copyright Record: 随机车流动态仿真模拟系统 V0.2"
 meta = [
     "Record Type: Software copyright application",
     "Software Name: 随机车流动态仿真模拟系统",
     "Version: V0.2",
-    "Current Status: Materials submitted; supplementary correction pending",
+    "Current Status: Supplementary correction submitted; under review",
     "Public Identifier: Pending until certificate issuance",
     "Key Date: Development completed 2025-11-18",
     "Rights: All rights; Acquisition: Original acquisition",
@@ -84,22 +101,24 @@ link = "https://github.com/xingxianggang/TJCS_Car_Sim_1092"
 
 [otherEngineering]
 heading = "Other Engineering Work"
-intro = "Selected secondary projects that show engineering breadth without changing the main simulation and digital twin narrative."
+intro = "Selected secondary systems that extend the main robotics, simulation, and practical AI narrative."
 
 [[otherEngineering.items]]
-title = "CEACStatusBot_Web"
-summary = "Self-hosted visa status monitoring with email alerts and an admin console."
-meta = "Full-stack automation"
-link = "https://github.com/Mike-Zhuang/CEACStatusBot_Web"
+title = "Smart Warehouse AGV Path Planner"
+summary = "A C++17 planning core with A*, Dijkstra, and CBS multi-robot coordination, exposed through FastAPI with 2D and 3D trajectory visualization."
+meta = "Robotics & multi-agent planning"
+link = "https://github.com/Mike-Zhuang/smart-warehouse-agv-path-planner"
+secondaryLink = "https://agv.mikezhuang.cn"
+secondaryLinkLabel = "Open live demo"
 
 [[otherEngineering.items]]
 title = "Mind-Matter Classroom"
-summary = "Embodied AI classroom prototype exploring interactive learning workflows."
-meta = "Applied AI prototype"
+summary = "A Unity embodied-cognition prototype connecting MediaPipe perception and gesture input through UDP to swarm robots and shallow-water simulation."
+meta = "Embodied AI · National research speech semifinal second prize"
 link = "https://github.com/Mike-Zhuang/Mind-Matter-Classroom"
 
 [[otherEngineering.items]]
-title = "ChemWave Maze Solver"
-summary = "Reaction-diffusion maze solving simulation for computational pattern dynamics."
-meta = "Simulation experiment"
-link = "https://github.com/Mike-Zhuang/ChemWave-Maze-Solver"
+title = "CEACStatusBot Web"
+summary = "A self-hosted multi-user visa-status monitoring service with scheduling, notifications, encrypted credentials, worker queues, and an admin console."
+meta = "Full-stack systems & operations"
+link = "https://github.com/Mike-Zhuang/CEACStatusBot_Web"

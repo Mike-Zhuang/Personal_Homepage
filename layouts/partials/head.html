@@ -4,10 +4,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} | {{ .Site.Title }}{{ end }}</title>
     <meta name="description" content="{{ .Site.Params.siteDescription }}">
+    <link rel="canonical" href="{{ .Permalink }}">
 
     <meta property="og:type" content="website">
     <meta property="og:title" content="{{ .Site.Title }}">
     <meta property="og:description" content="{{ .Site.Params.siteDescription }}">
+    <meta property="og:url" content="{{ .Permalink }}">
+    {{ with hugo.Data.site.profile.image }}
+    <meta property="og:image" content="{{ . | absURL }}">
+    <meta property="og:image:alt" content="{{ hugo.Data.site.profile.alt }}">
+    {{ end }}
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ .Site.Title }}">
+    <meta name="twitter:description" content="{{ .Site.Params.siteDescription }}">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer">

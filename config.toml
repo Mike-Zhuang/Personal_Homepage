@@ -1,6 +1,6 @@
 baseURL = "https://mikezhuang.cn/"
 languageCode = "en-us"
-title = "Personal Homepage"
+title = "Zhuang Chengbo (Mike)"
 enableRobotsTXT = true
 disableKinds = ["taxonomy", "term"]
 
@@ -8,7 +8,7 @@ disableKinds = ["taxonomy", "term"]
   unsafe = true
 
 [params]
-  siteDescription = "A high-density personal homepage focused on digital twins, simulation systems, and applied AI."
+  siteDescription = "Zhuang Chengbo builds simulation systems, digital twins, robotics, semantic 3D workflows, and practical AI at Tongji University."
   apiBaseUrl = ""
 
 [[menu.main]]

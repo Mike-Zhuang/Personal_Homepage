@@ -3,18 +3,18 @@ heading = "Education"
 
 [[items]]
 school = "Tongji University"
-program = "Future Technology Programme"
-period = "2025 - Present"
-location = ""
+program = "Guohao College · Future Technology Class (Robotics)"
+period = "2025 - 2029 (Expected)"
+location = "Shanghai, China"
 
 [[items]]
 school = "UC Berkeley Summer Sessions"
-program = "Engineering / Cognitive Science coursework (ENGIN 170E + COGSCI 139)"
-period = "Summer 2026"
+program = "Completed engineering and cognitive science coursework: ENGIN 170E + COGSCI 139"
+period = "Jul 6 - Aug 14, 2026"
 location = "Berkeley, CA"
 
 [[items]]
-school = "Mudanjiang No.1 Senior High School"
-program = "High School"
-period = "2022 - 2025"
-location = "Mudanjiang, China"
+school = "Oxford Prospects and Global Development Institute"
+program = "Short STEM programme at Regent's Park College · A+"
+period = "Jan 25 - Feb 7, 2026"
+location = "Oxford, UK"

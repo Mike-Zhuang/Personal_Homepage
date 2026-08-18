@@ -1,6 +1,6 @@
 # Personal Homepage
 
-A minimal, editorial-style personal homepage.
+An evidence-backed personal homepage for simulation systems, digital twins, robotics, semantic 3D workflows, and practical AI.
 
 ## Stack
 

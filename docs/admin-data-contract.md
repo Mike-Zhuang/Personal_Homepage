@@ -50,10 +50,14 @@ These fields are optional and do not change the top-level section contract:
 
 - `site.hero.badges[]`
 - `site.hero.quickFacts[] = { label, value }`
+- `site.profile.mobileImage`
 - `site.resume.note`
 - `projects.items[].featured`
 - `projects.items[].year`
 - `projects.items[].linkNote`
+- `projects.items[].linkLabel`
+- `projects.items[].secondaryLink`
+- `projects.items[].secondaryLinkLabel`
 - `projects.items[].highlights[]`
 - `projects.registrations`
 - `projects.otherEngineering`
