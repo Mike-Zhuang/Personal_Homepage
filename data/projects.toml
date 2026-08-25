@@ -83,16 +83,16 @@ link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
 
 [[registrations.items]]
 title = "Random Traffic Flow Dynamic Simulation System"
-status = "Software copyright correction under review"
+status = "Software copyright registered"
 year = "2026"
 description = "Software Copyright Record: 随机车流动态仿真模拟系统 V0.2"
 meta = [
-    "Record Type: Software copyright application",
+    "Record Type: Software copyright registration",
     "Software Name: 随机车流动态仿真模拟系统",
     "Version: V0.2",
-    "Current Status: Supplementary correction submitted; under review",
-    "Public Identifier: Pending until certificate issuance",
-    "Key Date: Development completed 2025-11-18",
+    "Current Status: Certificate issued",
+    "Public Identifier: Certificate No. 软著登字第18081738号; Registration No. 2026SR0867457",
+    "Key Date: Certificate date 2026-08-25",
     "Rights: All rights; Acquisition: Original acquisition",
     "Copyright Owners: Zhuang Chengbo / 庄程博; Wang Yinyou / 王尹囿; Tang Hongzhe / 汤鸿哲; Li Zhengsheng / 李正昇; Ma Rujin / 马如进",
     "Domain & Language: Traffic simulation; C++",
