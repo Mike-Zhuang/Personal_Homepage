@@ -1,5 +1,4 @@
 items = [
-  "Maintaining EventShock Lab as a deployed, evidence-reviewed counterfactual simulation prototype.",
   "Validating a 3DGS-to-Revit pipeline with Falcon-Perception and MCP across multiple scenes.",
   "Following LLM research, especially reasoning, agents, and evaluation for practical AI systems.",
   "Exploring spatial semantic representations for robot task planning and autonomous decision-making."
