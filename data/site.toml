@@ -1,7 +1,7 @@
 [hero]
 eyebrow = "Zhuang Chengbo / Mike"
 title = "Zhuang Chengbo (Mike)"
-subtitle = "Future Technology (Robotics) student at Tongji University building simulation systems, digital twins, and practical AI."
+subtitle = "Future Technology (Robotics) student at Tongji University building semantic 3D workflows, simulation systems, and digital twins."
 badges = ["Simulation Systems", "Digital Twins & Semantic 3D", "Applied AI & LLM Research"]
 quickFacts = [
     { label = "Base", value = "Shanghai, China" },
@@ -27,9 +27,19 @@ caption = "Berkeley, California · Summer 2026"
 [about]
 heading = "About"
 paragraphs = [
-    "I work across robotics, multi-agent simulation, semantic 3D modeling, and digital twin systems.",
-    "I care about systems that are inspectable, reproducible, maintainable, and useful beyond a classroom demo.",
+    "My interests center on robotics and embodied intelligence: multi-source perception, information fusion, and 3D scene understanding.",
+    "I turn algorithm prototypes into inspectable, reproducible systems for simulation, semantic 3D modeling, and physical-environment interaction.",
 ]
+
+[experience]
+heading = "Professional Experience"
+
+[[experience.items]]
+company = "Mudanjiang Chenxian Technology Co., Ltd."
+role = "Software Engineering Intern"
+period = "Jul 2026 - Present"
+location = "Mudanjiang, China"
+summary = "Built and deployed a Taobao Alliance rewards service using FastAPI, SQLite, Nginx, and GitHub Actions, with link parsing, commission checks, reward-status tracking, idempotent operations, and transaction risk controls."
 
 [resume]
 label = "CV"

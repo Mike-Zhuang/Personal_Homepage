@@ -52,6 +52,8 @@ These fields are optional and do not change the top-level section contract:
 - `site.hero.quickFacts[] = { label, value }`
 - `site.profile.mobileImage`
 - `site.resume.note`
+- `site.experience.heading`
+- `site.experience.items[] = { company, role, period, location, summary }`
 - `projects.items[].featured`
 - `projects.items[].year`
 - `projects.items[].linkNote`

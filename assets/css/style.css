@@ -713,14 +713,15 @@ main {
 
 .registration-list {
     display: grid;
-    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px;
 }
 
 .registration-item {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px 18px;
-    align-items: end;
+    align-content: start;
     padding-top: 16px;
     border-top: 1px solid var(--sk-border-light);
 }
@@ -733,6 +734,49 @@ main {
 .registration-copy {
     display: grid;
     gap: 8px;
+}
+
+.work-supplement.registrations {
+    margin-top: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.professional-experience {
+    margin-top: 32px;
+    padding-top: 28px;
+    border-top: 1px solid var(--sk-border-light);
+}
+
+.experience-list,
+.experience-item {
+    display: grid;
+    gap: 14px;
+}
+
+.experience-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 14px 24px;
+}
+
+.experience-heading h4 {
+    font-size: 20px;
+    line-height: 1.25;
+}
+
+.experience-role {
+    margin-top: 6px;
+    color: var(--sk-text-secondary);
+}
+
+.experience-summary {
+    max-width: 75ch;
+    color: var(--sk-text-secondary);
 }
 
 .registration-copy h4,
@@ -1033,6 +1077,7 @@ main {
 
     .project-grid,
     .other-work-grid,
+    .registration-list,
     .snapshot-grid,
     .snapshot-grid:has(.snapshot-card:nth-child(4)) {
         grid-template-columns: 1fr;
@@ -1046,6 +1091,10 @@ main {
     .supplement-heading {
         flex-direction: column;
         gap: 10px;
+    }
+
+    .experience-heading {
+        flex-direction: column;
     }
 
     .hero-meta-layout {

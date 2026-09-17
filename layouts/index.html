@@ -148,10 +148,9 @@
 
         {{ with $projectsData.registrations }}
         {{ if .items }}
-        <section class="work-supplement" aria-labelledby="registrations-heading">
+        <section class="work-supplement registrations" aria-labelledby="registrations-heading">
             <div class="supplement-heading">
                 <div>
-                    <p class="section-kicker">Evidence</p>
                     <h3 id="registrations-heading">{{ .heading }}</h3>
                 </div>
                 {{ with .intro }}
@@ -215,6 +214,30 @@
                     {{ with .secondaryLink }}
                     <a class="inline-link" href="{{ . }}" target="_blank" rel="noreferrer">{{ or $otherItem.secondaryLinkLabel "Open live demo" }}</a>
                     {{ end }}
+                </article>
+                {{ end }}
+            </div>
+        </section>
+        {{ end }}
+        {{ end }}
+
+        {{ with $site.experience }}
+        {{ if .items }}
+        <section class="professional-experience" aria-labelledby="experience-heading">
+            <div class="supplement-heading">
+                <h3 id="experience-heading">{{ .heading }}</h3>
+            </div>
+            <div class="experience-list">
+                {{ range .items }}
+                <article class="experience-item">
+                    <div class="experience-heading">
+                        <div>
+                            <h4>{{ .company }}</h4>
+                            <p class="experience-role">{{ .role }}</p>
+                        </div>
+                        <p class="meta-line">{{ .period }}{{ with .location }} | {{ . }}{{ end }}</p>
+                    </div>
+                    <p class="experience-summary">{{ .summary }}</p>
                 </article>
                 {{ end }}
             </div>

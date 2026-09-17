@@ -3,7 +3,7 @@ heading = "Selected Work"
 
 [[items]]
 title = "Tongji Southwest Building No.1 Digital Twin"
-status = "National Undergraduate Innovation Project · Project Lead"
+status = "National Undergraduate Innovation Project (2026) · Project Lead"
 featured = true
 year = "2025 - Present"
 stack = "iS3 · MCP · AI Agents · Non-Visual Sensing · Laser Communication"
@@ -17,14 +17,14 @@ linkNote = "Public documentation in preparation."
 
 [[items]]
 title = "Generative Multimodal Semantic 3D-to-BIM System"
-status = "Shanghai Municipal Innovation Project · Project Lead"
+status = "Shanghai Municipal Innovation Project (2026) · Project Lead"
 featured = true
 year = "2025 - Present"
-stack = "3DGS · Qwen-VL · SAM3 · Hierarchical Reasoning · IFC"
-summary = "A semantic 3D modeling workflow for smart spaces that turns visual evidence into editable, engineering-oriented BIM structure."
+stack = "3DGS · Falcon-Perception · Geometry Reconstruction · Revit · MCP"
+summary = "An automated 3DGS-to-Revit modeling workflow that turns segmented scene components into dimension-adjustable, editable BIM elements."
 highlights = [
-    "Uses Qwen-VL to plan observation viewpoints and SAM3 for multi-view semantic segmentation on a 3D Gaussian Splatting geometry base.",
-    "Recovers editable BIM topology through hierarchical reasoning and preserves a traceable pixel-to-Gaussian-to-mesh-to-IFC evidence chain.",
+    "Uses Falcon-Perception to segment components, back-project masks into Revit coordinates, and reconstruct their geometry.",
+    "Generates editable BIM components through MCP; core functions are complete, with multi-scene validation ongoing.",
 ]
 link = ""
 linkNote = "Project documentation under review."
@@ -61,41 +61,26 @@ linkLabel = "View repository"
 
 [registrations]
 heading = "Registrations / Intellectual Property"
-intro = "Formal records and in-progress applications are kept separate from publications so the evidence stays accurate and easy to audit."
 
 [[registrations.items]]
 title = "LBM Multi-Scenario Fluid Dynamics Simulator"
 status = "Software copyright registered"
-year = "2026"
-description = "Software Copyright Record: 基于格子玻尔兹曼方法的多场景流体动态演化仿真系统 V1.0"
+year = "May 2026"
+description = "基于格子玻尔兹曼方法的多场景流体动态演化仿真系统 V1.0"
 meta = [
-    "Record Type: Software copyright registration",
-    "Software Name: 基于格子玻尔兹曼方法的多场景流体动态演化仿真系统",
-    "Version: V1.0",
-    "Current Status: Certificate issued",
-    "Public Identifier: Certificate No. 软著登字第17840259号; Registration No. 2026SR0625978",
-    "Key Date: Certificate date 2026-05-27",
-    "Rights: All rights; Acquisition: Original acquisition",
-    "Copyright Owners: Zhuang Chengbo / 庄程博; Ma Rujin / 马如进",
-    "Domain & Language: Computational fluid dynamics simulation; Python",
+    "Registration No.: 2026SR0625978",
+    "Co-copyright holder: Zhuang Chengbo",
 ]
 link = "https://github.com/Mike-Zhuang/LBM-Multi-Scenario-Fluid-Simulator"
 
 [[registrations.items]]
 title = "Random Traffic Flow Dynamic Simulation System"
 status = "Software copyright registered"
-year = "2026"
-description = "Software Copyright Record: 随机车流动态仿真模拟系统 V0.2"
+year = "Aug 2026"
+description = "随机车流动态仿真模拟系统 V0.2"
 meta = [
-    "Record Type: Software copyright registration",
-    "Software Name: 随机车流动态仿真模拟系统",
-    "Version: V0.2",
-    "Current Status: Certificate issued",
-    "Public Identifier: Certificate No. 软著登字第18081738号; Registration No. 2026SR0867457",
-    "Key Date: Certificate date 2026-08-25",
-    "Rights: All rights; Acquisition: Original acquisition",
-    "Copyright Owners: Zhuang Chengbo / 庄程博; Wang Yinyou / 王尹囿; Tang Hongzhe / 汤鸿哲; Li Zhengsheng / 李正昇; Ma Rujin / 马如进",
-    "Domain & Language: Traffic simulation; C++",
+    "Registration No.: 2026SR0867457",
+    "Co-copyright holder: Zhuang Chengbo",
 ]
 link = "https://github.com/xingxianggang/TJCS_Car_Sim_1092"
 
